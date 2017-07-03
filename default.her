@@ -1,0 +1,12 @@
+transformation html2docbook;
+
+section HTML {
+        encoding = "UTF-8";
+        section-numbering-pattern = "((\d+\.)+)?\d*\.?\p{Z}*";
+}
+
+section DocBook {
+        encoding = "UTF-8";
+        add-index = true;
+        emphasis-role-bold = "bold";
+}
