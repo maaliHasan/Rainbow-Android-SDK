@@ -44,8 +44,6 @@ dependencies {
     compile 'org.igniterealtime.smack:smack-im:4.1.8'
     compile 'org.igniterealtime.smack:smack-extensions:4.1.8'
     compile 'org.igniterealtime.smack:smack-experimental:4.1.8'
-    compile 'com.google.firebase:firebase-core:10.2.4'
-    compile 'com.google.firebase:firebase-messaging:10.2.4'
     compile 'com.koushikdutta.async:androidasync:2.1.8'
     compile files('libs/microlog4android-0.6.0.jar')
     compile 'com.vdurmont:emoji-java:3.1.3'
