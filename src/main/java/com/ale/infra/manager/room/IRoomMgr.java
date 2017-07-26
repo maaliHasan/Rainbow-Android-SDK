@@ -57,6 +57,11 @@ public interface IRoomMgr {
     void associateConfToRoom(Room room, String confId, IRoomProxy.IAssociateConfListener listener);
     void dissociateConfToRoom(Room room, String confEndpointId, IRoomProxy.IDissociateConfListener listener);
 
+    void dissociateOtherRoomFromConference(Room room);
+    void dissociatePgiConference (String confId);
+
+    void refreshRoomConferenceInfo();
+
     interface IRoomRefreshListener {
         void onRoomRefreshSuccess();
         void onRoomRefreshFailed();

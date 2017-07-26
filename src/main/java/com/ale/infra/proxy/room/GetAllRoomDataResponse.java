@@ -123,6 +123,30 @@ public class GetAllRoomDataResponse extends RestResponse {
             }
         }
 
+        //        "conference" : {
+//            "scheduledStartDate" : ISODate("2017-06-23T15:00:00.000Z"),
+//                    "guestEmails" : [],
+//            "scheduled" : true
+//        }
+
+        if (obj.has("conference")) {
+            JSONObject jsonObject = obj.getJSONObject("conference");
+            //room.setScheduledConf(jsonObject.getBoolean("scheduled"));
+            room.setScheduledConf(false);
+            if (obj.has("scheduledStartDate"))
+                room.setScheduledStartDate(df.parse(obj.getString("scheduledStartDate")));
+            if (obj.has("guestEmails")) {
+                JSONArray array = obj.getJSONArray("guestEmails");
+
+                for (int i = 0; i < array.length(); i++) {
+                    Log.getLogger().verbose(LOG_TAG, "guest: " + array.getString(i));
+                    room.getGuests().add(array.getString(i));
+                }
+            }
+        } else {
+            room.setScheduledConf(false);
+        }
+
         return room;
     }
 

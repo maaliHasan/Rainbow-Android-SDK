@@ -35,7 +35,7 @@ public class Conversation implements IMultiSelectable, IDisplayable, IRainbowCon
     private ConversationType m_type;
     private Boolean m_mute = false;
     private ArrayItemList<IMMessage> m_messages = new ArrayItemList<>();
-    private List<IMMessage> m_newMessages = new ArrayList<>();
+    private ArrayList<IMMessage> m_newMessages = new ArrayList<>();
     private boolean m_isFirstRead = true;
     private int unreceivedMsgNb;
     private int unreadMsgNb;
@@ -90,11 +90,11 @@ public class Conversation implements IMultiSelectable, IDisplayable, IRainbowCon
         this.id = id;
     }
 
-    public List<IMMessage> getNewsMessages() {
-        return m_newMessages;
+    public synchronized List<IMMessage> getNewsMessages() {
+        return (List<IMMessage>) m_newMessages.clone();
     }
 
-    public void removeNewsMessages() {
+    public synchronized void  removeNewsMessages() {
         m_newMessages.clear();
     }
 
@@ -121,7 +121,7 @@ public class Conversation implements IMultiSelectable, IDisplayable, IRainbowCon
         return messages;
     }
 
-    public void addMessage(IMMessage message)
+    public synchronized void addMessage(IMMessage message)
     {
         if (m_messages == null) {
             Log.getLogger().warn(LOG_TAG, "No messages into Conversation");
@@ -144,6 +144,9 @@ public class Conversation implements IMultiSelectable, IDisplayable, IRainbowCon
             if(message.getDeliveryState().equals(IMMessage.DeliveryState.RECEIVED)) {
                 incrementUnreadCounter();
             }
+
+            if(!mamInProgress)
+                sortMessages();
         }
     }
 
@@ -153,28 +156,33 @@ public class Conversation implements IMultiSelectable, IDisplayable, IRainbowCon
         if(!mamInProgress) {
             Log.getLogger().verbose(LOG_TAG, "Merge MAM messages and clear it");
 
-            List<IMMessage> msgRightOrder = m_messages.getCopyOfDataList();
-
-            Collections.sort(msgRightOrder, new Comparator<IMMessage>()
-            {
-                @Override
-                public int compare(IMMessage message, IMMessage otherMessage)
-                {
-                    if (message.getMessageDate() == null && otherMessage.getMessageDate() == null)
-                        return 0;
-
-                    if(message.getMessageDate() == null)
-                        return -1;
-
-                    if(otherMessage.getMessageDate() == null)
-                        return 1;
-
-                    return message.getMessageDate().compareTo(otherMessage.getMessageDate());
-                }
-            });
-
-            m_messages.replaceAll(msgRightOrder);
+            sortMessages();
         }
+    }
+
+    private void sortMessages()
+    {
+        List<IMMessage> msgRightOrder = m_messages.getCopyOfDataList();
+
+        Collections.sort(msgRightOrder, new Comparator<IMMessage>()
+        {
+            @Override
+            public int compare(IMMessage message, IMMessage otherMessage)
+            {
+                if (message.getMessageDate() == null && otherMessage.getMessageDate() == null)
+                    return 0;
+
+                if(message.getMessageDate() == null)
+                    return -1;
+
+                if(otherMessage.getMessageDate() == null)
+                    return 1;
+
+                return message.getMessageDate().compareTo(otherMessage.getMessageDate());
+            }
+        });
+
+        m_messages.replaceAll(msgRightOrder);
     }
 
     private void incrementUnreadCounter()

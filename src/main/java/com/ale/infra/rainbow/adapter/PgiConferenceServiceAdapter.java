@@ -377,6 +377,54 @@ public class PgiConferenceServiceAdapter implements IPgiConferenceService
     }
 
     @Override
+    public void muteAllParticipant(String confId,boolean muteState, final IAsyncServiceVoidCallback callback) {
+        Log.getLogger().verbose(LOG_TAG, ">toggleAllMuteStateParticipant");
+
+        StringBuilder restUrl = new StringBuilder(getUrl());
+        restUrl.append(ApisConstants.PGI_CONFERENCES);
+        try {
+            restUrl.append(URLEncoder.encode(confId, "UTF-8"));
+            restUrl.append("/update");
+
+        } catch (UnsupportedEncodingException e) {
+            Log.getLogger().error(LOG_TAG, "Impossible to construct URI to toggleMuteStateParticipant");
+        }
+
+        JSONObject restBody = new JSONObject();
+        try
+        {
+            if( muteState )
+                restBody.put("option", "mute");
+            else
+                restBody.put("option", "unmute");
+        }
+        catch (Exception ex)
+        {
+            Log.getLogger().error(LOG_TAG, "Error while filling JSON Object");
+        }
+
+        m_restAsyncRequest.sendPutRequest(restUrl.toString(), restBody, new IAsyncServiceResultCallback<RESTResult>() {
+            @Override
+            public void handleResult(AsyncServiceResponseResult<RESTResult> asyncResult) {
+                if (asyncResult.exceptionRaised()) {
+                    Log.getLogger().error(LOG_TAG, "toggleAllMuteStateParticipant FAILURE");
+                    notifyVoidResult(callback, asyncResult.getException());
+                } else {
+                    Log.getLogger().info(LOG_TAG, "toggleMuteAllStateParticipant SUCCESS");
+                    try {
+                        notifyVoidResult(callback, null);
+                    }
+                    catch (Exception error)
+                    {
+                        Log.getLogger().error(LOG_TAG, "Impossible to parse REST toggleMuteAllStateParticipant result");
+                        notifyVoidResult(callback, new RainbowServiceException(error));
+                    }
+                }
+            }
+        });
+    }
+
+    @Override
     public void hangUpParticipant(String confId, String participantId, final IAsyncServiceVoidCallback callback) {
         Log.getLogger().verbose(LOG_TAG, ">hangUpParticipant");
 

@@ -18,6 +18,7 @@ import com.ale.infra.platformservices.IPlatformServices;
 import com.ale.infra.proxy.avatar.IAvatarProxy;
 import com.ale.infra.proxy.company.ICompanyProxy;
 import com.ale.infra.proxy.users.IUserProxy;
+import com.ale.service.RainbowService;
 import com.ale.util.DateTimeUtil;
 import com.ale.util.StringsUtil;
 import com.ale.util.log.Log;
@@ -588,7 +589,7 @@ public class CompanyInvitationMgr implements ICompanyInvitationMgr {
 
         Thread myThread = new Thread() {
             public void run() {
-                if ( m_avatarProxy != null && companyContact.getLastAvatarUpdateDate() != null ) {
+                if ( m_avatarProxy != null && companyContact.getLastAvatarUpdateDate() != null && !companyContact.hasNoAvatarOnServer() ) {
                     m_avatarProxy.getAvatar(companyContact.getId(), companyContact.getLastAvatarUpdateDateString(), 288, new IAvatarProxy.IAvatarListener() {
                         @Override
                         public void onAvatarSuccess(Bitmap bmp) {
@@ -606,8 +607,10 @@ public class CompanyInvitationMgr implements ICompanyInvitationMgr {
                         }
 
                         @Override
-                        public void onAvatarFailure() {
+                        public void onAvatarFailure(RainbowServiceException exception) {
                             Log.getLogger().warn(LOG_TAG, ">onAvatarFailure; " + companyContact.getName());
+                            if ( exception != null && exception.getStatusCode() == 404)
+                                companyContact.sethasNoAvatarOnServer(true);
                             companyContact.notifyCompanyContactUpdated();
                         }
                     });
@@ -662,7 +665,7 @@ public class CompanyInvitationMgr implements ICompanyInvitationMgr {
 
         Thread myThread = new Thread() {
             public void run() {
-                if (companyContact.getLastBannerUpdateDate() != null) {
+                if (companyContact.getLastBannerUpdateDate() != null && !companyContact.hasNoAvatarOnServer()) {
                     m_companyProxy.getCompanyBanner(companyContact.getId(), 288, new IAvatarProxy.IAvatarListener() {
                         @Override
                         public void onAvatarSuccess(Bitmap bmp) {
@@ -681,8 +684,11 @@ public class CompanyInvitationMgr implements ICompanyInvitationMgr {
                         }
 
                         @Override
-                        public void onAvatarFailure() {
+                        public void onAvatarFailure(RainbowServiceException exception) {
                             Log.getLogger().warn(LOG_TAG, ">onAvatarFailure; " + companyContact.getName());
+                            if (exception != null &&  exception.getStatusCode() == 404)
+                                companyContact.sethasNoAvatarOnServer(true);
+
                             companyContact.notifyCompanyContactUpdated();
                         }
                     });

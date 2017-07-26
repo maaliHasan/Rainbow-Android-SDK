@@ -1,6 +1,7 @@
 package com.ale.infra.manager;
 
 import com.ale.infra.application.RainbowContext;
+import com.ale.infra.contact.CalendarPresence;
 import com.ale.infra.contact.Contact;
 import com.ale.infra.contact.DirectoryContact;
 import com.ale.infra.contact.IContactCacheMgr;
@@ -10,6 +11,7 @@ import com.ale.infra.platformservices.IPlatformServices;
 import com.ale.infra.proxy.directory.IDirectoryProxy;
 import com.ale.infra.proxy.users.IUserProxy;
 import com.ale.infra.xmpp.AbstractRainbowXMPPConnection;
+import com.ale.infra.xmpp.xep.calendar.UntilExtension;
 import com.ale.infra.xmpp.xep.message.UserVcardUpdateEvent;
 import com.ale.rainbowsdk.RainbowSdk;
 import com.ale.util.DateTimeUtil;
@@ -38,6 +40,7 @@ import org.xmlpull.v1.XmlPullParserFactory;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Date;
 import java.util.HashSet;
@@ -49,6 +52,7 @@ import java.util.Set;
  */
 public class XmppContactMgr implements RosterListener {
     final static String LOG_TAG = "XmppContactMgr";
+    private static final String CALENDAR = "calendar";
 
     private final IContactCacheMgr m_contactCacheMgr;
     private final Set<XmppContactMgrListener> m_changeListeners = new HashSet<>();
@@ -64,7 +68,17 @@ public class XmppContactMgr implements RosterListener {
         public synchronized void processPacket(final Stanza packet) throws SmackException.NotConnectedException {
             UserVcardUpdateEvent userVcardUpdate = packet.getExtension(UserVcardUpdateEvent.ELEMENT, UserVcardUpdateEvent.NAMESPACE);
             if (userVcardUpdate != null) {
+                Log.getLogger().verbose(LOG_TAG, "Avatar asked" + userVcardUpdate.isAvatar());
                 m_contactCacheMgr.refreshUser();
+                if (userVcardUpdate.isAvatar())  {
+                    Contact c = m_contactCacheMgr.getContactFromJid(packet.getFrom());
+                    if (c != null) {
+                        List<Contact> list = new ArrayList<>();
+                        list.add(c);
+                        m_contactCacheMgr.resolveDirectoryContacts(list);
+                    }
+
+                }
             }
 
             if (m_user != null && packet.getFrom() != null && packet.getFrom().startsWith(m_user.getImJabberId())) {
@@ -98,6 +112,7 @@ public class XmppContactMgr implements RosterListener {
         m_connection.addSyncStanzaListener(m_presencePacketListener, presenceFilter);
 
         ProviderManager.addExtensionProvider(UserVcardUpdateEvent.ELEMENT, UserVcardUpdateEvent.NAMESPACE, new UserVcardUpdateEvent.Provider());
+        ProviderManager.addExtensionProvider(UntilExtension.ELEMENT, UntilExtension.NAMESPACE, new UntilExtension.Provider());
     }
 
 
@@ -390,27 +405,36 @@ public class XmppContactMgr implements RosterListener {
         if (pres != null) {
 
             String resourceId = getResourceIdFromPresence(jabberId);
-            contact.setPresence(resourceId, RainbowPresence.getPresenceFrom(pres, m_contactCacheMgr.getUser() == contact));
-            //<delay xmlns='urn:xmpp:delay' stamp='2017-01-06T15:54:00.045+00:00' from='0807c64963814a0a846b3f16387e7a4a@demo-all-in-one-dev-1.opentouch.cloud/web_win_1.18.7_7HOFCpSp'></delay>
-            DelayInformation delayInfo = null;
-            try {
-                delayInfo = presence.getExtension(DelayInformation.ELEMENT,DelayInformation.NAMESPACE);
-            } catch (Exception e) {
-                Log.getLogger().error(LOG_TAG, "Presence has NO Delay TAG: "+e.getMessage());
-            }
 
-            if(!jabberId.startsWith(StringsUtil.JID_TEL_PREFIX))
+            if(CALENDAR.equals(resourceId))
+                contact.setCalendarPresence(new CalendarPresence(pres, (UntilExtension) presence.getExtension(UntilExtension.ELEMENT, UntilExtension.NAMESPACE)));
+            else
             {
-                // get message timestamp
-                if (delayInfo != null)
+                contact.setPresence(resourceId, RainbowPresence.getPresenceFrom(pres, m_contactCacheMgr.getUser() == contact));
+                //<delay xmlns='urn:xmpp:delay' stamp='2017-01-06T15:54:00.045+00:00' from='0807c64963814a0a846b3f16387e7a4a@demo-all-in-one-dev-1.opentouch.cloud/web_win_1.18.7_7HOFCpSp'></delay>
+                DelayInformation delayInfo = null;
+                try
                 {
-                    Date date = delayInfo.getStamp();
-                    Log.getLogger().verbose(LOG_TAG, "Presence has Delay TAG: " + date);
-                    contact.getDirectoryContact().setLastPresenceReceivedDate(date);
+                    delayInfo = presence.getExtension(DelayInformation.ELEMENT, DelayInformation.NAMESPACE);
                 }
-                else
+                catch (Exception e)
                 {
-                    contact.getDirectoryContact().setLastPresenceReceivedDate(new Date());
+                    Log.getLogger().error(LOG_TAG, "Presence has NO Delay TAG: " + e.getMessage());
+                }
+
+                if (!jabberId.startsWith(StringsUtil.JID_TEL_PREFIX))
+                {
+                    // get message timestamp
+                    if (delayInfo != null)
+                    {
+                        Date date = delayInfo.getStamp();
+                        Log.getLogger().verbose(LOG_TAG, "Presence has Delay TAG: " + date);
+                        contact.getDirectoryContact().setLastPresenceReceivedDate(date);
+                    }
+                    else
+                    {
+                        contact.getDirectoryContact().setLastPresenceReceivedDate(new Date());
+                    }
                 }
             }
         }
@@ -609,6 +633,7 @@ public class XmppContactMgr implements RosterListener {
             m_connection.removeSyncStanzaListener(m_presencePacketListener);
 
         ProviderManager.removeExtensionProvider(UserVcardUpdateEvent.ELEMENT, UserVcardUpdateEvent.NAMESPACE);
+        ProviderManager.removeExtensionProvider(UntilExtension.ELEMENT, UntilExtension.NAMESPACE);
 
         synchronized (this)
         {

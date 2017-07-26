@@ -216,6 +216,27 @@ public class PgiConferenceProxy implements IPgiConferenceProxy {
     }
 
     @Override
+    public void muteAllParticipant(String confId, boolean muteState, final IToggleMuteStateParticipantListener listener) {
+        Log.getLogger().verbose(LOG_TAG, ">toggleAllMuteStateParticipant: "+muteState);
+
+        m_pgiConferenceService.muteAllParticipant(confId, muteState, new IAsyncServiceVoidCallback() {
+            @Override
+            public void handleResult(AsyncServiceResponseVoid asyncResult) {
+                if (!asyncResult.exceptionRaised()) {
+                    Log.getLogger().info(LOG_TAG, "toggleMuteAllStateParticipant SUCCESS");
+
+                    if (listener != null)
+                        listener.onToggleMuteStateParticipantSuccess();
+                } else {
+                    Log.getLogger().info(LOG_TAG, "toggleMuteAllStateParticipant FAILURE", asyncResult.getException());
+                    if (listener != null)
+                        listener.onToggleMuteStateParticipantFailed();
+                }
+            }
+        });
+    }
+
+    @Override
     public void hangUpParticipant(String confId, String participantId, final IHangUpParticipantListener listener) {
         Log.getLogger().verbose(LOG_TAG, ">HangUpParticipant");
 

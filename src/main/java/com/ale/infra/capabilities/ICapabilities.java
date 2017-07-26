@@ -20,4 +20,12 @@ public interface ICapabilities {
     int getMaxBubbleParticipants();
 
     int getFileSharingQuota();
+
+    boolean isConferenceRecordingAllowed();
+
+    public boolean isConferenceDialOutAllowed();
+
+    boolean isConferenceAllowed();
+
+    int getMaxConferenceParticipants();
 }

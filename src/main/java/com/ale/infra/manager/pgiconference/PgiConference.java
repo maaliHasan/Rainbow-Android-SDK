@@ -308,7 +308,7 @@ public class PgiConference {
                     Log.getLogger().verbose(LOG_TAG, "Delete Participant");
                     m_participants.remove(pgiConfPart);
 
-                    if( me != null && pgiConfPart.getJidIm().equals(me.getImJabberId())) {
+                    if( me != null && pgiConfPart.getJidIm()!= null && pgiConfPart.getJidIm().equals(me.getImJabberId())) {
                         m_participants.clear();
 
                         if( this.confState != null )
@@ -350,19 +350,32 @@ public class PgiConference {
         return parts;
     }
 
-    public List<PgiConferenceParticipant> getParticipantsWithoutJid(String filterJid) {
+    public List<PgiConferenceParticipant> getParticipantsWithMeAsFirst(String userJid) {
 
         List<PgiConferenceParticipant> parts = new ArrayList<>();
         for(PgiConferenceParticipant part : m_participants) {
             if( !part.isLeader() ) {
-                if( !StringsUtil.isNullOrEmpty(part.getJidIm()) && part.getJidIm().equals(filterJid))
-                    continue;
-
-                parts.add(part);
+                if( !StringsUtil.isNullOrEmpty(part.getJidIm()) && part.getJidIm().equals(userJid))
+                    parts.add(0,part);
+                else
+                    parts.add(part);
             }
         }
 
         return parts;
+    }
+
+
+    public PgiConferenceParticipant getMeAsParticipant() {
+
+        List<PgiConferenceParticipant> parts = new ArrayList<>();
+        String myJid = RainbowContext.getInfrastructure().getContactCacheMgr().getUser().getImJabberId();
+        for(PgiConferenceParticipant part : m_participants) {
+                if( !StringsUtil.isNullOrEmpty(part.getJidIm()) && part.getJidIm().equals(myJid))
+                    return part;
+        }
+
+        return null;
     }
 
     public List<PgiConferenceParticipant> getTalkingUsers() {
@@ -401,6 +414,14 @@ public class PgiConference {
         return confState.isConfActive();
     }
 
+    public boolean isMyConference() {
+
+        if (RainbowContext.getInfrastructure().getContactCacheMgr().getUser() == null)
+            return false;
+        return m_userId.equals(RainbowContext.getInfrastructure().getContactCacheMgr().getUser().getCorporateId());
+
+    }
+
     public boolean isUserConnected(String imJabberId) {
         PgiConferenceParticipant user = getPgiConferenceParticipantByJid(imJabberId);
         if( user == null)
@@ -408,6 +429,18 @@ public class PgiConference {
 
         return( user.isConnected() );
     }
+
+    public boolean isLocalUserConnected() {
+        if (RainbowContext.getInfrastructure().getContactCacheMgr().getUser() == null)
+            return false;
+        PgiConferenceParticipant user = getPgiConferenceParticipantByJid(RainbowContext.getInfrastructure().getContactCacheMgr().getUser().getImJabberId());
+        if( user == null)
+            return false;
+
+        return( user.isConnected() );
+    }
+
+
 
     public interface PgiConferenceListener
     {

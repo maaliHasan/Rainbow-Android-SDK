@@ -16,6 +16,8 @@ import com.ale.security.util.CryptUtil;
 import com.ale.util.StringsUtil;
 import com.ale.util.log.Log;
 
+import java.net.MalformedURLException;
+import java.net.URL;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -136,6 +138,27 @@ public class ApplicationData implements IApplicationData
         }
         m_dataStorage.setValue(OT_URL_PARAM, serverUrl);
     }
+
+    @Override
+    public String getServerUrlForCDN(){
+        String serverUrl = m_dataStorage.getValue(OT_URL_PARAM, RAINBOW_PROD_URL);
+
+        if  (RainbowContext.getPlatformServices().getUserPreferences().isCDNUsed()) {
+            URL uri = null;
+            try {
+                uri = new URL(serverUrl);
+            } catch (MalformedURLException e) {
+                Log.getLogger().warn(LOG_TAG, "bad server url: " + serverUrl);
+                return "";
+            }
+
+            return uri.getProtocol() + "://" + "cdn." + uri.getHost();
+        } else {
+            return serverUrl;
+        }
+    }
+
+
 
     @Override
     public String getHost()

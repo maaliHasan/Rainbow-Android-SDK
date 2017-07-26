@@ -176,14 +176,6 @@ public class Contact implements IMultiSelectable, IContact.IContactListener, IDi
         }
     }
 
-    public void setTelPresence(String resourceIdFromPresence, RainbowPresence pres)
-    {
-        if (directoryContact != null)
-        {
-            directoryContact.setTelPresence(resourceIdFromPresence, pres);
-        }
-    }
-
     public String getContactId()
     {
         String jid = getImJabberId();
@@ -564,6 +556,16 @@ public class Contact implements IMultiSelectable, IContact.IContactListener, IDi
         return null;
     }
 
+    @Override
+    public CalendarPresence getCalendarPresence()
+    {
+        if (directoryContact != null)
+        {
+            return directoryContact.getCalendarPresence();
+        }
+        return null;
+    }
+
     public synchronized void notifyContactUpdated()
     {
 
@@ -645,6 +647,7 @@ public class Contact implements IMultiSelectable, IContact.IContactListener, IDi
         if (localContact != null && !localContact.equals(contact.localContact)) return false;
         if (directoryContact != null && !directoryContact.equals(contact.directoryContact)) return false;
         if (orderedContactList != null && !orderedContactList.equals(contact.orderedContactList)) return false;
+
         return role.equals(contact.role);
     }
 
@@ -727,6 +730,25 @@ public class Contact implements IMultiSelectable, IContact.IContactListener, IDi
 
         if( this.localContact == null)
             this.localContact = contact.getLocalContact();
+    }
+
+    public synchronized Set<WebSite> getWebSites()
+    {
+        for (IContact contact : orderedContactList)
+        {
+            Set<WebSite> infos = contact.getWebSites();
+            if (infos != null)
+                return infos;
+        }
+        return new HashSet<>();
+    }
+
+    public void setCalendarPresence(CalendarPresence calendarPresence)
+    {
+        if (directoryContact != null)
+        {
+            directoryContact.setCalendarPresence(calendarPresence);
+        }
     }
 
     public interface ContactListener

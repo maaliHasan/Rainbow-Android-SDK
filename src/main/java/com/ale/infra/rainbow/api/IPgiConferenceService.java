@@ -28,6 +28,8 @@ public interface IPgiConferenceService extends IRainbowService  {
 
     void muteParticipant(String confId, String participantId, boolean muteState, IAsyncServiceVoidCallback callback);
 
+    void muteAllParticipant(String confId, boolean muteState, IAsyncServiceVoidCallback callback);
+
     void hangUpParticipant(String confId, String participantId, IAsyncServiceVoidCallback callback);
 
     void startRecording(String confId, IAsyncServiceVoidCallback callback);

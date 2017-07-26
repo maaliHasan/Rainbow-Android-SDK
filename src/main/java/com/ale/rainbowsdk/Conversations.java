@@ -3,7 +3,6 @@ package com.ale.rainbowsdk;
 import com.ale.infra.application.RainbowContext;
 import com.ale.infra.list.ArrayItemList;
 import com.ale.infra.list.IItemListChangeListener;
-import com.ale.infra.manager.ChatMgr;
 import com.ale.infra.manager.Conversation;
 import com.ale.infra.proxy.conversation.IConversationProxy;
 import com.ale.infra.proxy.conversation.IRainbowConversation;
@@ -55,23 +54,26 @@ public class Conversations {
      */
     public IRainbowConversation getConversationFromContact(String  contactJid, final IRainbowGetConversationListener listener) {
         // Search the existing conversation and trigger it if exists
-        for (IRainbowConversation conversation : m_conversations.getItems()) {
-            if (conversation.getContact().getImJabberId().equals(contactJid)) {
-                listener.onGetConversationSuccess(conversation);
-                return conversation;
-            }
-        }
+        // TODO: use getConversationFromId method if really needed and test null pointer for listener
+        // listener.onGetConversationSuccess(conversation);
+
 
         // Or create a new conversation with the Jid and trigger it
         return RainbowContext.getInfrastructure().getChatMgr().createNewConversationFromJid(contactJid, new IConversationProxy.ICreateConversationListener() {
             @Override
             public void onCreationSuccess(String id) {
-                listener.onGetConversationSuccess(RainbowContext.getInfrastructure().getChatMgr().getConversationFromId(id));
+                if (listener != null) {
+                    listener.onGetConversationSuccess(RainbowContext.getInfrastructure().getChatMgr().getConversationFromId(id));
+                }
+
             }
 
             @Override
             public void onCreationError() {
-                listener.onGetConversationError();
+                if (listener != null) {
+                    listener.onGetConversationError();
+                }
+
             }
         });
     }
@@ -91,6 +93,5 @@ public class Conversations {
 
     protected void unregisterChangeListener() {
         RainbowContext.getInfrastructure().getChatMgr().getConversations().unregisterChangeListener(m_conversationsListener);
-        m_conversations.clear(); // Need because this instance is not cleared after a disconnection
     }
 }

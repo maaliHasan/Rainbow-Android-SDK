@@ -1,6 +1,5 @@
 package com.ale.rainbowsdk;
 
-import com.ale.infra.IInfrastructure;
 import com.ale.infra.application.RainbowContext;
 import com.ale.infra.contact.Contact;
 import com.ale.infra.list.ArrayItemList;
@@ -52,18 +51,6 @@ public class Im {
 
     Im() {
         m_imListener = new ArrayList<>();
-    }
-
-    public void finalize() {
-        try {
-            super.finalize();
-            IInfrastructure infra = RainbowContext.getInfrastructure();
-            if (infra.getChatMgr() != null) {
-                infra.getChatMgr().unregisterChangeListener(m_listener);
-            }
-        } catch (Throwable throwable) {
-            throwable.printStackTrace();
-        }
     }
 
     /**

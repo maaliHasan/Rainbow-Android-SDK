@@ -1,5 +1,6 @@
 package com.ale.infra.manager.room;
 
+import com.ale.infra.application.RainbowContext;
 import com.ale.infra.capabilities.ICapabilities;
 import com.ale.infra.contact.Contact;
 import com.ale.infra.contact.IContactCacheMgr;
@@ -138,10 +139,20 @@ public class RoomMgr implements IRoomMgr, XmppContactMgr.XmppContactMgrListener{
 
     public synchronized void setRooms(List<Room> rooms, boolean updateDB) {
         Log.getLogger().verbose(LOG_TAG, ">setRooms");
-        m_allRooms.replaceAll(rooms); //contains archived + myRooms + pending + all other
-        for(Room room : m_allRooms.getCopyOfDataList()) {
+        List<Room> newRooms = new ArrayList<>();
+
+        for (Room room: rooms) {
+            Room resolvedRoom = getRoomById(room.getId());
             checkPgiConfInRoom(room);
+            if (resolvedRoom != null) {
+                //New room
+                resolvedRoom.update(room);
+            } else {
+                resolvedRoom = room;
+            }
+            newRooms.add(resolvedRoom);
         }
+        m_allRooms.replaceAll(newRooms);
 
         if (updateDB)
             refreshDB();
@@ -151,7 +162,6 @@ public class RoomMgr implements IRoomMgr, XmppContactMgr.XmppContactMgrListener{
         Log.getLogger().verbose(LOG_TAG, ">checkPgiConfInRoom");
 
         if( room.getEndPoints().size() > 0 && room.getPgiConference() == null) {
-            Log.getLogger().debug(LOG_TAG, "Need to retrieveConference information");
             RoomConfEndPoint confEndPoint = room.getEndPoints().get(0);
 
             PgiConference pgiConf = m_pgiMgr.getConferenceFromEndPoint(confEndPoint);
@@ -172,13 +182,23 @@ public class RoomMgr implements IRoomMgr, XmppContactMgr.XmppContactMgrListener{
         if(!room.isRoomVisibleForGui())
             return;
 
-        m_allRooms.uniqueAdd(room);
         checkPgiConfInRoom(room);
-        updateDb(room);
+
+        Room mergedRoom = getRoomById(room.getId());
+        if (mergedRoom != null) {
+            mergedRoom.update(room);
+        } else {
+            mergedRoom = room;
+            m_allRooms.uniqueAdd(room);
+        }
+
+        updateDb(mergedRoom);
     }
 
     @Override
     public synchronized void updateRoom(Room room) {
+        checkPgiConfInRoom(room);
+
         int index = getRoomIndex(room);
         if (index >= 0) {
             Room existingRoom = getAllRooms().get(index);
@@ -842,13 +862,12 @@ public class RoomMgr implements IRoomMgr, XmppContactMgr.XmppContactMgrListener{
             Log.getLogger().warn(LOG_TAG, "confId not available");
             return;
         }
-
+        room.setPgiConference(null);
         m_roomProxy.dissociateConfToRoom(room, confId, new IRoomProxy.IDissociateConfListener() {
             @Override
             public void onDissociateConfSuccess() {
                 Log.getLogger().verbose(LOG_TAG, ">onDissociateConfSuccess");
 
-                room.setPgiConference(null);
                 if (listener != null)
                     listener.onDissociateConfSuccess();
             }
@@ -862,6 +881,77 @@ public class RoomMgr implements IRoomMgr, XmppContactMgr.XmppContactMgrListener{
         });
     }
 
+    @Override
+    public void dissociatePgiConference(String confId) {
+        for (Room room : getAllRooms().getCopyOfDataList()) {
+            if (room.getPgiConference() != null && room.getPgiConference().getId().equals(confId)) {
+                Log.getLogger().warn(LOG_TAG, "Dissociate Old Room" + room.getId());
+                if (room.getPgiConference().isMyConference()) {
+                    dissociateConfToRoom(room, confId, new IRoomProxy.IDissociateConfListener() {
+                        @Override
+                        public void onDissociateConfSuccess() {
+
+                        }
+
+                        @Override
+                        public void onDissociateConfFailed() {
+
+                        }
+                    });
+                } else {
+                    //remove conf / room association locally
+                    room.setInactiveConference(true);
+                }
+
+            }
+        }
+    }
+
+ public void  dissociateOtherRoomFromConference(Room roomToAssociate) {
+
+     if (roomToAssociate.getPgiConference() == null)
+         return;
+
+     String confId = roomToAssociate.getPgiConference().getId();
+        for (Room room : getMyRoomList()) {
+
+            if (!room.getId().equals(roomToAssociate.getId())) {
+                if (room.getPgiConference() != null && room.getPgiConference().getId().equals(confId)) {
+                    //Old association need to be destroyed
+
+                    Log.getLogger().warn(LOG_TAG, "Dissociate Old Room" + room.getId());
+                    if (room.getPgiConference() .isMyConference()) {
+                        dissociateConfToRoom(room, confId, new IRoomProxy.IDissociateConfListener() {
+                            @Override
+                            public void onDissociateConfSuccess() {
+
+                            }
+
+                            @Override
+                            public void onDissociateConfFailed() {
+
+                            }
+                        });
+                    } else {
+                        //remove conf / room association locally
+                        room.setPgiConference(null);
+                    }
+                }
+
+            }
+
+        }
+    }
+
+
+    @Override
+    public void refreshRoomConferenceInfo(){
+
+        for (Room room: m_allRooms.getCopyOfDataList()) {
+            checkPgiConfInRoom(room);
+        }
+
+    }
     public void removeObserver(XmppConnection connection)
     {
         if( connection != null && connection.getXmppContactMgr() != null) {

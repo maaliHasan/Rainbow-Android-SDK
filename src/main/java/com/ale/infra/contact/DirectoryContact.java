@@ -21,10 +21,13 @@ public class DirectoryContact extends AbstractContact
 
     private boolean isRoster = false;
     private RainbowPresence presence = RainbowPresence.UNSUBSCRIBED;
-    private RainbowPresence telPresence = RainbowPresence.UNSUBSCRIBED;
+    private CalendarPresence m_calendarPresence;
     private Date m_lastPresenceReceivedDate;
     private Map<String, PresenceWithDate> presencesByResources = new HashMap<>();
-    private String MOBILE_PREFIX = "mobile_";
+    private static final String MOBILE_PREFIX = "mobile_";
+
+
+    private boolean hasNoAvatarOnServer = false;
 
 
     private DirectoryContactType type = DirectoryContactType.USER;
@@ -80,7 +83,7 @@ public class DirectoryContact extends AbstractContact
 
             if (dirContact.getCompanyId() != null)
                 this.companyId = dirContact.getCompanyId();
-            if (this.isRoster == false)
+            if (!this.isRoster)
                 this.isRoster = dirContact.isRoster();
             if( dirContact.getLastAvatarUpdateDate() != null)
                 this.lastAvatarUpdateDate = dirContact.getLastAvatarUpdateDate();
@@ -196,6 +199,7 @@ public class DirectoryContact extends AbstractContact
         if (timeZone != null && !timeZone.equals(that.timeZone)) return false;
         if (jidTel != null && !jidTel.equals(that.jidTel)) return false;
         if (loginEmail != null && !loginEmail.equals(that.loginEmail)) return false;
+        if (lastAvatarUpdateDate != null && !lastAvatarUpdateDate.equals(that.lastAvatarUpdateDate)) return false;
 
         return super.equals(o);
     }
@@ -210,17 +214,6 @@ public class DirectoryContact extends AbstractContact
         if( jidTel != null ) result = 31 * result + jidTel.hashCode();
         if( loginEmail != null ) result = 31 * result + loginEmail.hashCode();
         return result;
-    }
-
-    private boolean checkPresencesForOnlineMobile()
-    {
-        for (String resourceId : presencesByResources.keySet()) {
-            if (resourceId.startsWith(MOBILE_PREFIX)) {
-                presence = RainbowPresence.ONLINE;
-                return true;
-            }
-        }
-        return false;
     }
 
     private RainbowPresence updatePresence()
@@ -238,10 +231,6 @@ public class DirectoryContact extends AbstractContact
         if (checkPresencesForJidTel())
             return this.presence;
 
-        if (checkPresencesForPresence(RainbowPresence.MANUAL_AWAY)) {
-            return this.presence;
-        }
-
         if (checkPresencesForPresence(RainbowPresence.BUSY_AUDIO)) {
             return this.presence;
         }
@@ -251,6 +240,10 @@ public class DirectoryContact extends AbstractContact
         }
 
         if (checkPresencesForPresence(RainbowPresence.BUSY_PHONE)) {
+            return this.presence;
+        }
+
+        if (checkPresencesForPresence(RainbowPresence.MANUAL_AWAY)) {
             return this.presence;
         }
 
@@ -282,10 +275,6 @@ public class DirectoryContact extends AbstractContact
         notifyPresenceChanged();
 
         return RainbowPresence.OFFLINE;
-    }
-
-    public Map<String, PresenceWithDate> getPresencesByResource() {
-        return this.presencesByResources;
     }
 
     public RainbowPresence getPresence()
@@ -338,15 +327,8 @@ public class DirectoryContact extends AbstractContact
             notifyPresenceChanged();
     }
 
-    public void setTelPresence(String ressource, RainbowPresence presence) {
-        this.telPresence = presence;
-    }
-
     public void merge(DirectoryContact dirContact) {
         if( dirContact == null)
-            return;
-
-        if (dirContact == null)
             return;
 
         if (!StringsUtil.isNullOrEmpty(dirContact.getFirstName()))
@@ -397,7 +379,7 @@ public class DirectoryContact extends AbstractContact
         if (!StringsUtil.isNullOrEmpty(dirContact.getCompanyId()))
             this.companyId = dirContact.getCompanyId();
 
-        if (this.isRoster == false)
+        if (!this.isRoster)
             this.isRoster = dirContact.isRoster();
 
         // GetUserData returns wrong value for this field
@@ -425,6 +407,35 @@ public class DirectoryContact extends AbstractContact
 
         if (!StringsUtil.isNullOrEmpty(dirContact.getLoginEmail()))
             this.loginEmail = dirContact.getLoginEmail();
+
+        notifyDirectoryContactChanged();
+    }
+
+    public void update(DirectoryContact dirContact) {
+        if( dirContact == null)
+            return;
+
+        this.firstName = dirContact.getFirstName();
+        this.lastName = dirContact.getLastName();
+        this.companyName = dirContact.getCompanyName();
+        this.jobTitle = dirContact.getJobTitle();
+        this.title = dirContact.getTitle();
+        this.nickName = dirContact.getNickName();
+        this.phoneNumbers = dirContact.getPhoneNumbers();
+        this.photo = dirContact.getPhoto();
+        this.emailAddresses = dirContact.getEmailAddresses();
+        this.postalAddresses = dirContact.getPostalAddresses();
+        this.jabberId = dirContact.getImJabberId();
+        this.corporateId = dirContact.getCorporateId();
+        this.companyId = dirContact.getCompanyId();
+        this.isRoster = dirContact.isRoster();
+        this.lastAvatarUpdateDate = dirContact.getLastAvatarUpdateDate();
+        this.role = dirContact.getRole();
+        this.country = dirContact.getCountry();
+        this.language = dirContact.getLanguage();
+        this.timeZone = dirContact.getTimeZone();
+        this.jidTel = dirContact.getJidTel();
+        this.loginEmail = dirContact.getLoginEmail();
 
         notifyDirectoryContactChanged();
     }
@@ -525,17 +536,12 @@ public class DirectoryContact extends AbstractContact
         return loginEmail;
     }
 
-    public List<Profile> getProfiles() {
+    private List<Profile> getProfiles() {
         return profiles;
     }
 
     public void setProfiles(List<Profile> profiles) {
         this.profiles = profiles;
-        notifyDirectoryContactChanged();
-    }
-
-    public void addProfile(Profile profile) {
-        this.profiles.add(profile);
         notifyDirectoryContactChanged();
     }
 
@@ -646,11 +652,20 @@ public class DirectoryContact extends AbstractContact
         notifyDirectoryContactChanged();
     }
 
+
+    public boolean hasNoAvatarOnServer() {
+        return hasNoAvatarOnServer;
+    }
+
+    public void sethasNoAvatarOnServer(boolean hasNoAvatarOnServer) {
+        this.hasNoAvatarOnServer = hasNoAvatarOnServer;
+    }
+
     public String getTitle() {
         return title;
     }
 
-    public synchronized void notifyPresenceChanged()
+    private synchronized void notifyPresenceChanged()
     {
         for (IContactListener listener : m_changeListeners.toArray(new IContactListener[m_changeListeners.size()]))
         {
@@ -658,7 +673,7 @@ public class DirectoryContact extends AbstractContact
         }
     }
 
-    public synchronized void notifyDirectoryContactChanged()
+    private synchronized void notifyDirectoryContactChanged()
     {
         for (IContactListener listener : m_changeListeners.toArray(new IContactListener[m_changeListeners.size()]))
         {
@@ -666,10 +681,21 @@ public class DirectoryContact extends AbstractContact
         }
     }
 
+    public CalendarPresence getCalendarPresence()
+    {
+        return m_calendarPresence;
+    }
+
+    public void setCalendarPresence(CalendarPresence calendarPresence)
+    {
+        m_calendarPresence = calendarPresence;
+        notifyPresenceChanged();
+    }
+
     public enum DirectoryContactType
     {
         USER,
-        BOT;
+        BOT
     }
 
 }

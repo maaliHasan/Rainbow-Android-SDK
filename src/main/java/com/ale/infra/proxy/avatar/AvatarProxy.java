@@ -51,7 +51,7 @@ public class AvatarProxy implements IAvatarProxy
         {
             Log.getLogger().warn(LOG_TAG, ">getAvatar has no CorporateId");
             if (listener != null)
-                listener.onAvatarFailure();
+                listener.onAvatarFailure(null);
 
             return;
         }
@@ -80,7 +80,7 @@ public class AvatarProxy implements IAvatarProxy
                     }
 
                     if (listener != null)
-                        listener.onAvatarFailure();
+                        listener.onAvatarFailure(asyncResult.getException());
                 }
             }
         });
@@ -94,7 +94,7 @@ public class AvatarProxy implements IAvatarProxy
         {
             Log.getLogger().warn(LOG_TAG, ">uploadAvatar; " + contact.getDisplayName4Log("") + " has no CorporateId");
             if (listener != null)
-                listener.onAvatarFailure();
+                listener.onAvatarFailure(null);
 
             return;
         }
@@ -117,7 +117,7 @@ public class AvatarProxy implements IAvatarProxy
                     Log.getLogger().info(LOG_TAG, "uploadAvatar FAILURE for contact " + contact.getDisplayName4Log(""), asyncResult.getException());
 
                     if (listener != null)
-                        listener.onAvatarFailure();
+                        listener.onAvatarFailure(asyncResult.getException());
                 }
             }
         });

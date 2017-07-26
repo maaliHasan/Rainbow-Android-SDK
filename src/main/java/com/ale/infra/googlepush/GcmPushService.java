@@ -1,7 +1,6 @@
 package com.ale.infra.googlepush;
 
 import android.content.Context;
-import android.os.Bundle;
 import android.os.PowerManager;
 
 import com.ale.infra.application.RainbowContext;
@@ -18,13 +17,15 @@ import com.ale.infra.manager.room.Room;
 import com.ale.infra.xmpp.XmppConnection;
 import com.ale.util.StringsUtil;
 import com.ale.util.log.Log;
-import com.google.android.gms.gcm.GcmListenerService;
+import com.google.firebase.messaging.FirebaseMessagingService;
+import com.google.firebase.messaging.RemoteMessage;
 
 import java.util.Date;
 import java.util.List;
+import java.util.Map;
 
 
-public class GcmPushService extends GcmListenerService
+public class GcmPushService extends FirebaseMessagingService
 {
 
     private static final String LOG_TAG = "GcmPushService";
@@ -32,9 +33,7 @@ public class GcmPushService extends GcmListenerService
     private String m_senderJid;
     private String m_msgContent;
     private String m_senderName;
-    private IContactCacheMgr m_contactCacheMgr;
     private PowerManager.WakeLock lock = null;
-    private PowerManager mgr;
     private boolean inDebug = false;
     private boolean m_isRoomType = false;
     private String m_msgId;
@@ -68,13 +67,17 @@ public class GcmPushService extends GcmListenerService
     }
 
     @Override
-    public void onMessageReceived(String from, Bundle data)
+    public void onMessageReceived(RemoteMessage message)
     {
 
         synchronized (this) {
+            Map<String, String> data = message.getData();
 
             lock.acquire();
-            Log.getLogger().info(LOG_TAG, "Received GCM Message: " + data.toString());
+            Log.getLogger().info(LOG_TAG, "Received GCM Message: ");
+
+
+
 
 
             // Message for Chat :
@@ -97,13 +100,13 @@ public class GcmPushService extends GcmListenerService
 
 
             try {
-            String senderJid = data.getString("last-message-sender");
+                String senderJid = data.get("last-message-sender");
                 if (StringsUtil.isNullOrEmpty(senderJid)) {
-                    Log.getLogger().warn(LOG_TAG, "Wrong GCM Message");
+                    Log.getLogger().warn(LOG_TAG, "Wrong GCM Message" );
                     return;
                 }
 
-            String messageType = data.getString("last-message-type");
+                String messageType = data.get("last-message-type");
 
                 if (!StringsUtil.isNullOrEmpty(messageType) && "call".equalsIgnoreCase(messageType)) {
                     XmppConnection connection = RainbowContext.getInfrastructure().getXmppConnection();
@@ -113,24 +116,25 @@ public class GcmPushService extends GcmListenerService
                         return;
                     }
 
-                String callAction = data.getString("call-action");
-                String callId = data.getString("call-id");
-                String medias = data.getString("call-media");
-                    connection.getTelephonyMgr().handlePushMessage(senderJid, callId, callAction, medias);
+                    String callAction = data.get("call-action");
+                    String callId = data.get("call-id");
+                    String medias = data.get("call-media");
+                    String callResource = data.get("call-resource");
+                    connection.getTelephonyMgr().handlePushMessage(senderJid, callResource, callId, callAction, medias);
                 } else {
-                m_msgId = data.getString("message-id");
-                m_msgContent = data.getString("last-message-body");
-                m_senderName = data.getString("first-last-name");
+                    m_msgId = data.get("message-id");
+                    m_msgContent = data.get("last-message-body");
+                    m_senderName = data.get("first-last-name");
 
-                m_dateString = data.getString("stamp");
-                m_senderJid = data.getString("last-message-sender");
+                    m_dateString = data.get("stamp");
+                    m_senderJid = data.get("last-message-sender");
 
                     m_isRoomType = false;
 
                     if (!StringsUtil.isNullOrEmpty(messageType) && "groupchat".equalsIgnoreCase(messageType)) {
                         m_isRoomType = true;
-                    m_roomJid = data.getString("room-jid");
-                    m_roomName = data.getString("room-name");
+                        m_roomJid = data.get("room-jid");
+                        m_roomName = data.get("room-name");
 
                         if (StringsUtil.isNullOrEmpty(m_roomJid)) {
                             Log.getLogger().warn(LOG_TAG, "Wrong GCM Message: No room Jid");
@@ -181,7 +185,7 @@ public class GcmPushService extends GcmListenerService
 
             Contact contact = null;
 
-            List<DirectoryContact> contacts = RainbowContext.getInfrastructure().getDatabaseMgr().getContactDataSource().getAllContacts(false,false);
+            List<DirectoryContact> contacts = RainbowContext.getInfrastructure().getDatabaseMgr().getContactDataSource().getAllContacts(false, false);
             for (DirectoryContact dir : contacts)
             {
                 if (dir.getImJabberId().equalsIgnoreCase(m_senderJid))
@@ -316,11 +320,5 @@ public class GcmPushService extends GcmListenerService
     public void onMessageSent(String msgId)
     {
         Log.getLogger().verbose(LOG_TAG, "Upstream message sent. Id=" + msgId);
-    }
-
-    @Override
-    public void onSendError(String msgId, String error)
-    {
-        Log.getLogger().warn(LOG_TAG, "Upstream message send error. Id=" + msgId + ", error" + error);
     }
 }

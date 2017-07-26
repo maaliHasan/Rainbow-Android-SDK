@@ -133,7 +133,7 @@ public class CompanyProxy implements ICompanyProxy {
                     }
 
                     if (listener != null)
-                        listener.onAvatarFailure();
+                        listener.onAvatarFailure(asyncResult.getException());
                 }
             }
         });

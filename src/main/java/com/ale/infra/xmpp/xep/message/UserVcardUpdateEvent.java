@@ -21,18 +21,21 @@ public class UserVcardUpdateEvent implements ExtensionElement {
      * original ID of the delivered message
      */
     private String m_data;
+    private boolean m_avatar = false;
 
 
-    public UserVcardUpdateEvent(String data)
+    public UserVcardUpdateEvent(String data, boolean avatar)
     {
         m_data = data;
+        m_avatar = avatar;
     }
 
     @Override
     public XmlStringBuilder toXML()
     {
         XmlStringBuilder xml = new XmlStringBuilder(this);
-        xml.attribute("data", m_data);
+        if (m_data != null)
+            xml.attribute("data", m_data);
         xml.closeEmptyElement();
         return xml;
     }
@@ -62,13 +65,34 @@ public class UserVcardUpdateEvent implements ExtensionElement {
         public UserVcardUpdateEvent parse(XmlPullParser parser, int initialDepth) throws XmlPullParserException, IOException {
             String data = parser.getAttributeValue("", "data");
             // Advance to end of extension.
-            parser.next();
-            return new UserVcardUpdateEvent(data);
+            boolean b = false;
+            int eventType = parser.next();
+            while (eventType != XmlPullParser.END_TAG) {
+                switch (eventType) {
+                    case XmlPullParser.START_TAG:
+                        String elementName = parser.getName();
+
+                        switch (elementName) {
+                            case "avatar":
+                                b = true;
+                                break;
+
+                            default:
+                                break;
+                        }
+                }
+                eventType = parser.next();
+            }
+            return new UserVcardUpdateEvent(data,b);
         }
     }
 
     public String getData() {
         return m_data;
+    }
+
+    public boolean isAvatar() {
+        return m_avatar;
     }
 
 }

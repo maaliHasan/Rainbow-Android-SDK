@@ -16,7 +16,7 @@ public class RainbowCommandPush extends IQ implements PlainStreamElement {
 
     public static String ACTION_EXECUTE = "execute";
 
-    public static String NODE_REGISTER_PUSH = "register-push-gcm";
+    public static String NODE_REGISTER_PUSH = "register-push-fcm";
     public static String NODE_UNREGISTER_PUSH = "unregister-push";
 
     private static final String FIELD_TOKEN = "token";

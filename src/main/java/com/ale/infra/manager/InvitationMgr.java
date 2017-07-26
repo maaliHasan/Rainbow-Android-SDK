@@ -69,6 +69,12 @@ public class InvitationMgr implements IInvitationMgr, XmppContactMgr.XmppContact
                     public void onSuccess(final List<Invitation> invitationList) {
                         Log.getLogger().verbose(LOG_TAG, ">refreshReceivedUserInvitationList received invitation Success :" + invitationList.size());
                         setReceivedUserInvitationList(invitationList);
+
+                        for (Invitation invitation : invitationList) {
+                            if (Invitation.InvitationStatus.PENDING == invitation.getStatus()) {
+                                autoAcceptSameCompanyUserInvitation(invitation);
+                            }
+                        }
                     }
 
                     @Override
@@ -108,9 +114,6 @@ public class InvitationMgr implements IInvitationMgr, XmppContactMgr.XmppContact
         m_receivedInvitationList.clear();
         for (Invitation invitation : invitationList) {
             getReceivedUserContactInfo(invitation);
-            if (Invitation.InvitationStatus.PENDING == invitation.getStatus()) {
-                autoAcceptSameCompanyUserInvitation(invitation);
-            }
         }
         m_receivedInvitationList.addAll(invitationList);
     }
@@ -232,7 +235,9 @@ public class InvitationMgr implements IInvitationMgr, XmppContactMgr.XmppContact
         if (invitation == null || Invitation.InvitationStatus.PENDING != invitation.getStatus()) {
             Log.getLogger().verbose(LOG_TAG, ">acceptUserInvitation no invitation");
             refreshReceivedUserInvitationList();
-            listener.onFailure(new RainbowServiceException("invitation is null or not pending"));
+            if (listener != null) {
+                listener.onFailure(new RainbowServiceException("invitation is null or not pending"));
+            }
             return;
         }
 
@@ -270,7 +275,9 @@ public class InvitationMgr implements IInvitationMgr, XmppContactMgr.XmppContact
         if (invitation == null || Invitation.InvitationStatus.PENDING != invitation.getStatus()) {
             Log.getLogger().verbose(LOG_TAG, ">declineUserInvitation no invitation");
             refreshReceivedUserInvitationList();
-            listener.onFailure(new RainbowServiceException("invitation is null or not pending"));
+            if (listener != null) {
+                listener.onFailure(new RainbowServiceException("invitation is null or not pending"));
+            }
             return;
         }
 
@@ -302,14 +309,16 @@ public class InvitationMgr implements IInvitationMgr, XmppContactMgr.XmppContact
     }
 
     @Override
-    public void cancelUserInvitation(final String invitationId, final IUserProxy.IGetUserInvitationsListener listener) {
+    public void cancelUserInvitation(final String InvitedUserId, final IUserProxy.IGetUserInvitationsListener listener) {
         Log.getLogger().verbose(LOG_TAG, ">cancelUserInvitation");
 
-        final Invitation invitation = findReceivedUserInvitationWithInvitationId(invitationId);
+        final Invitation invitation = findPendingSentUserInvitationWithContact(InvitedUserId);
         if (invitation == null || Invitation.InvitationStatus.PENDING != invitation.getStatus()) {
             Log.getLogger().verbose(LOG_TAG, ">cancelUserInvitation no invitation");
             refreshSentUserInvitationList();
-            listener.onFailure(new RainbowServiceException("invitation is null or not pending"));
+            if (listener != null) {
+                listener.onFailure(new RainbowServiceException("invitation is null or not pending"));
+            }
             return;
         }
 
@@ -385,10 +394,13 @@ public class InvitationMgr implements IInvitationMgr, XmppContactMgr.XmppContact
         }
 
         final String finalEmailAddress = emailAddress;
-        if (contactCorporateId != null) {
+        if (!StringsUtil.isNullOrEmpty(contactCorporateId)) {
             Contact contact = m_contactCacheMgr.getContactFromCorporateId(contactCorporateId);
             contact.setClickActionInProgress(true);
-        }//diplay progressBar
+        } else {
+            Contact contact = m_contactCacheMgr.getContactFromEmail(finalEmailAddress);
+            contact.setClickActionInProgress(true);
+        }
         Thread myThread = new Thread() {
             public void run() {
                 m_notificationProxy.sendEmailInvite(m_platformServices.getApplicationData().getUserId(), finalEmailAddress, new INotificationProxy.ISendEMailListener() {
@@ -396,9 +408,15 @@ public class InvitationMgr implements IInvitationMgr, XmppContactMgr.XmppContact
                     public synchronized void onSuccess() {
                         if (listener != null)
                             listener.onSuccess();
-                        if (contactCorporateId != null) {
+                        if (!StringsUtil.isNullOrEmpty(contactCorporateId)) {
                             Contact contact = m_contactCacheMgr.getContactFromCorporateId(contactCorporateId);
-                            setPresenceInProgressVisibilityPendingSentUser(contact.getCorporateId());
+                            contact.setRosterInProgress(true);
+                            contact.setPresence(null, RainbowPresence.SUBSCRIBE);
+                            contact.setClickActionInProgress(false);
+                        } else {
+                            Contact contact = m_contactCacheMgr.getContactFromEmail(finalEmailAddress);
+                            contact.setRosterInProgress(true);
+                            contact.setPresence(null, RainbowPresence.SUBSCRIBE);
                             contact.setClickActionInProgress(false);
                         }
                     }

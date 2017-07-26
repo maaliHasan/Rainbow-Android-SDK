@@ -23,7 +23,7 @@ public interface IInvitationMgr
 
     void declineUserInvitation(String invitationId, IUserProxy.IGetUserInvitationsListener listener);
 
-    void cancelUserInvitation(String invitationId, IUserProxy.IGetUserInvitationsListener listener);
+    void cancelUserInvitation(String InvitedUserId, IUserProxy.IGetUserInvitationsListener listener);
 
     ArrayItemList<Invitation> getReceivedUserInvitationList();
 

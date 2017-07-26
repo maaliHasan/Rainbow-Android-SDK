@@ -58,4 +58,6 @@ public interface IUserPreferences
 	String getVoIpRingtone();
 
 	boolean isLargeTextForConversations();
+
+	boolean isCDNUsed();
 }

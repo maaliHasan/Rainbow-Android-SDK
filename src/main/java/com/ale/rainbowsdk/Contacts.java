@@ -37,13 +37,16 @@ public class Contacts
     private ArrayItemList<IRainbowContact> m_sentInvitations;
     private ArrayItemList<IRainbowContact> m_receivedInvitations;
     private ArrayList<IRainbowContactsListener> m_listeners;
-    private ArrayList<IRainbowInvitationManagementListener> m_receivedinvitationsListener;
+    private ArrayList<IRainbowInvitationManagementListener> m_receivedInvitationsListener;
 
     private IItemListChangeListener m_contactsListener = new IItemListChangeListener() {
         @Override
         public void dataChanged() {
-            List<Contact> contacts = RainbowContext.getInfrastructure().getContactCacheMgr().getRosters().getCopyOfDataList();
-            m_contacts.replaceAll((ArrayList<IRainbowContact>) (ArrayList<?>)contacts);
+            ArrayItemList<Contact> contacts = RainbowContext.getInfrastructure().getContactCacheMgr().getRosters();
+            m_contacts.clear();
+            for(Contact contact : contacts.getCopyOfDataList()) {
+                m_contacts.add(contact);
+            }
         }
     };
 
@@ -88,8 +91,11 @@ public class Contacts
         if (RainbowContext.getInfrastructure() != null
                 && RainbowContext.getInfrastructure().getContactCacheMgr() != null
                 && RainbowContext.getInfrastructure().getContactCacheMgr().getRosters() != null) {
-            List<Contact> contacts = RainbowContext.getInfrastructure().getContactCacheMgr().getRosters().getCopyOfDataList();
-            m_contacts.replaceAll((ArrayList<IRainbowContact>) (ArrayList<?>)contacts);
+            ArrayItemList<Contact> contacts = RainbowContext.getInfrastructure().getContactCacheMgr().getRosters();
+            m_contacts.clear();
+            for(Contact contact : contacts.getCopyOfDataList()) {
+                m_contacts.add(contact);
+            }
         }
 
         m_sentInvitations = new ArrayItemList<>();
@@ -115,6 +121,7 @@ public class Contacts
         }
 
         m_listeners = new ArrayList<>();
+        m_receivedInvitationsListener = new ArrayList<>();
     }
 
     private ArrayItemList<IRainbowContact> getInvitationsReceivedWIthIRainbowContact(List<Invitation> invitations) {
@@ -161,14 +168,14 @@ public class Contacts
     }
 
     public void registerInvitationsListener(IRainbowInvitationManagementListener listener) {
-        if (!m_receivedinvitationsListener.contains(listener)) {
-            m_receivedinvitationsListener.add(listener);
+        if (!m_receivedInvitationsListener.contains(listener)) {
+            m_receivedInvitationsListener.add(listener);
         }
     }
 
-    public void unregisInvitationsterListener(IRainbowContactsListener listener) {
-        if (m_receivedinvitationsListener.contains(listener)) {
-            m_receivedinvitationsListener.remove(listener);
+    public void unregisInvitationsterListener(IRainbowInvitationManagementListener listener) {
+        if (m_receivedInvitationsListener.contains(listener)) {
+            m_receivedInvitationsListener.remove(listener);
         }
     }
 
@@ -185,7 +192,7 @@ public class Contacts
     }
 
     private void notifyReceivedInvitationChenged(List<IRainbowContact> contactsInviting) {
-        for (IRainbowInvitationManagementListener listener : m_receivedinvitationsListener) {
+        for (IRainbowInvitationManagementListener listener : m_receivedInvitationsListener) {
             listener.onNewReceivedInvitation(contactsInviting);
         }
     }
@@ -328,21 +335,9 @@ public class Contacts
                 if (listener != null) {
                     listener.OnContactRemoveSuccess(contactEmail);
                 }
-            } catch (SmackException.NotLoggedInException e) {
+            } catch (SmackException.NotLoggedInException | XMPPException.XMPPErrorException | SmackException.NotConnectedException | SmackException.NoResponseException e1) {
                 if (listener != null) {
-                    listener.onContactRemovedError(e);
-                }
-            } catch (XMPPException.XMPPErrorException e) {
-                if (listener != null) {
-                    listener.onContactRemovedError(e);
-                }
-            } catch (SmackException.NotConnectedException e) {
-                if (listener != null) {
-                    listener.onContactRemovedError(e);
-                }
-            } catch (SmackException.NoResponseException e) {
-                if (listener != null) {
-                    listener.onContactRemovedError(e);
+                    listener.onContactRemovedError(e1);
                 }
             }
         }
@@ -356,6 +351,16 @@ public class Contacts
     public ArrayItemList<IRainbowContact> getRainbowContacts()
     {
         return m_contacts;
+    }
+
+    /**
+     * get IRainbowContactobject from corporateId
+     * @param contactCorporateId : corporateId of the contact
+     * @return the IrainbowContact object.
+     */
+    public IRainbowContact getContactFromId(String contactCorporateId) {
+        return RainbowContext.getInfrastructure().getContactCacheMgr().
+                getContactFromCorporateId(contactCorporateId);
     }
 
     /**
@@ -445,8 +450,7 @@ public class Contacts
      */
     public IRainbowContact searchByLogin(String login)
     {
-        Contact contact = new Contact();
-        return contact;
+        return new Contact();
     }
 
     /**
@@ -541,12 +545,12 @@ public class Contacts
         RainbowContext.getInfrastructure().getContactCacheMgr().getRosters().unregisterChangeListener(m_contactsListener);
     }
 
-    protected void registerInvitationChangeListener() {
+    void registerInvitationChangeListener() {
         RainbowContext.getInfrastructure().getInvitationMgr().getSentUserInvitationList().registerChangeListener(m_sentInvitationListener);
         RainbowContext.getInfrastructure().getInvitationMgr().getReceivedUserInvitationList().registerChangeListener(m_receivedInvitationListener);
     }
 
-    protected void unregisterInvitationChangeListener() {
+    void unregisterInvitationChangeListener() {
         RainbowContext.getInfrastructure().getInvitationMgr().getSentUserInvitationList().unregisterChangeListener(m_sentInvitationListener);
         RainbowContext.getInfrastructure().getInvitationMgr().getReceivedUserInvitationList().unregisterChangeListener(m_receivedInvitationListener);
     }

@@ -17,6 +17,7 @@ public class UpdatedParticipants {
 
     public static final String ELEMENT = "updated-participants";
     public static final String PARTICIPANTS_ELEMENT = "participants";
+    public static final String ADDED_PARTICIPANTS_ELEMENT = "added-participants";
 
 
     public List<ConferenceParticipant> parse(XmlPullParser parser) throws XmlPullParserException, IOException {
@@ -32,7 +33,8 @@ public class UpdatedParticipants {
                 switch (name) {
                     case ConferenceParticipant.ELEMENT:
                         ConferenceParticipant confPart = new ConferenceParticipant();
-                        updatedParticipants.add(confPart.parse(parser));
+                        confPart.parse(parser);
+                        updatedParticipants.add(confPart);
                         break;
 
                     default:
@@ -43,7 +45,7 @@ public class UpdatedParticipants {
             parser.next();
             name = parser.getName();
             eventType = parser.getEventType();
-            if (!StringsUtil.isNullOrEmpty(name) && (name.equals(ELEMENT) || name.equals(PARTICIPANTS_ELEMENT)) &&
+            if (!StringsUtil.isNullOrEmpty(name) && (name.equals(ELEMENT) || name.equals(PARTICIPANTS_ELEMENT) || name.equals(ADDED_PARTICIPANTS_ELEMENT)) &&
                     (eventType == XmlPullParser.END_TAG)) {
                 break;
             }

@@ -36,4 +36,6 @@ public interface IPgiConferenceMgr {
     void startRecording(PgiConference conf, IPgiConferenceProxy.IStartRecordListener listener);
 
     void stopRecording(PgiConference conf, IPgiConferenceProxy.IStopRecordListener listener);
+
+    boolean isAnotherConferenceActive(String confId);
 }

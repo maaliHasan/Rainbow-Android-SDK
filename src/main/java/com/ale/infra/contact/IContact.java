@@ -76,9 +76,9 @@ public interface IContact extends IDisplayable
 
     Set<EmailAddress> getEmailAddresses();
 
-    void addEmailAddress(String email, EmailAddress.EmailType type);
+    Set<WebSite> getWebSites();
 
-    void clearEmailAddresses();
+    void addEmailAddress(String email, EmailAddress.EmailType type);
 
     String getEmailWithType(EmailAddress.EmailType type);
 
@@ -119,23 +119,7 @@ public interface IContact extends IDisplayable
 
     void unregisterChangeListener(IContactListener changeListener);
 
-
-    enum ContactState
-    {
-        ADD_TO_ROSTER_IN_PROGRESS,
-        ROSTER_TO_UPDATE,
-        IDLE;
-
-        public static ContactState fromValue(String v)
-        {
-            return valueOf(v);
-        }
-
-        public String value()
-        {
-            return name();
-        }
-    }
+    void addWebSite(String string, WebSite.WebSiteType type);
 
     enum ContactRole
     {

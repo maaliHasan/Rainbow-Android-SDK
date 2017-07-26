@@ -41,4 +41,6 @@ public interface IRESTAsyncRequest
     void getTextFile(String url, IAsyncServiceResultCallback<String> callback);
 
     void setAuthenticationErrorListenerProxy(IAuthentication.IAuthenticationErrorListener m_authenticationErrorListener);
+
+    void shutdown();
 }

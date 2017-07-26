@@ -125,8 +125,6 @@ public class RESTAsyncRequest implements IRESTAsyncRequest {
                 return true;
             }
         });
-
-        m_queue.stop();
     }
 
     private void sendRequest(int method, final String url, JSONObject jsonBody, final IAsyncServiceResultCallback<RESTResult> callback)
@@ -183,11 +181,10 @@ public class RESTAsyncRequest implements IRESTAsyncRequest {
             }
         };
 
-//        jsonRequest.setRetryPolicy(new DefaultRetryPolicy(
-//                SOCKET_TIMEOUT_MS,
-//                MAX_RETRIES,
-//                BACKOFF_MULT));
-        // Add the request to the RequestQueue.
+        jsonRequest.setRetryPolicy(new DefaultRetryPolicy(
+                SOCKET_TIMEOUT_MS,
+                DefaultRetryPolicy.DEFAULT_MAX_RETRIES,
+                DefaultRetryPolicy.DEFAULT_MAX_RETRIES));
         m_queue.add(jsonRequest);
     }
 
@@ -606,6 +603,14 @@ public class RESTAsyncRequest implements IRESTAsyncRequest {
     public void setAuthenticationErrorListenerProxy(IAuthentication.IAuthenticationErrorListener authenticationErrorListener)
     {
         m_authenticationErrorListener = authenticationErrorListener;
+    }
+
+    @Override
+    public void shutdown()
+    {
+        abort();
+
+        m_queue.stop();
     }
 
     private void notifGetFileResultSuccess(final IAsyncServiceResultCallback<String> callback, final String content)

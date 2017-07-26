@@ -25,7 +25,7 @@ public class RoomMultiUserChatEvent implements ExtensionElement {
 
     public enum RoomEventType
     {
-        WELCOME("welcome"), INVITATION("invitation"), JOIN("join"), LEAVE("leave"), CLOSE("disconnect"), UNDEFINED("undefined");
+        WELCOME("welcome"), INVITATION("invitation"), JOIN("join"), LEAVE("leave"), CLOSE("disconnect"), CONFERENCEADD ("conferenceAdd"), CONFERENCEREMOVED ("conferenceRemove"), UNDEFINED("undefined");
         private String value;
 
         RoomEventType(String value) {

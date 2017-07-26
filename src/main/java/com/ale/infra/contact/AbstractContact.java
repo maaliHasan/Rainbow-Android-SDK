@@ -32,6 +32,7 @@ public abstract class AbstractContact implements IContact
     protected Set<PhoneNumber> phoneNumbers;
     protected Set<EmailAddress> emailAddresses;
     protected Set<PostalAddress> postalAddresses;
+    protected Set<WebSite> webSites;
     protected String jabberId;
     protected String corporateId;
     protected String companyId;
@@ -41,6 +42,7 @@ public abstract class AbstractContact implements IContact
         phoneNumbers = new HashSet<>();
         emailAddresses = new HashSet<>();
         postalAddresses = new HashSet<>();
+        webSites = new HashSet<>();
     }
 
     public AbstractContact(IContact contact)
@@ -54,6 +56,7 @@ public abstract class AbstractContact implements IContact
         this.phoneNumbers = contact.getPhoneNumbers();
         this.emailAddresses = contact.getEmailAddresses();
         this.postalAddresses = contact.getPostalAddresses();
+        this.webSites = contact.getWebSites();
         this.jabberId = contact.getImJabberId();
         this.corporateId = contact.getCorporateId();
         this.companyId = contact.getCompanyId();
@@ -68,18 +71,20 @@ public abstract class AbstractContact implements IContact
             this.lastName = contact.getLastName();
         if (contact.getCompanyName() != null)
             this.companyName = contact.getCompanyName();
-
-        setJobTitle(contact.getJobTitle());
-        setNickName(contact.getNickName());
-
+        if (contact.getJobTitle() != null)
+            this.jobTitle = contact.getJobTitle();
+        if (contact.getNickName() != null)
+            this.nickName = contact.getNickName();
         if (contact.getPhoto() != null)
             this.photo = contact.getPhoto();
-        if (contact.getPhoneNumbers() != null) //case no phoneNumber
+        if (contact.getPhoneNumbers() != null && contact.getPhoneNumbers().size() > 0)
             this.phoneNumbers = contact.getPhoneNumbers();
         if (contact.getEmailAddresses() != null && contact.getEmailAddresses().size() > 0)
             this.emailAddresses = contact.getEmailAddresses();
         if (contact.getPostalAddresses() != null && contact.getPostalAddresses().size() > 0)
             this.postalAddresses = contact.getPostalAddresses();
+        if (contact.getWebSites() != null && contact.getWebSites().size() > 0)
+            this.webSites = contact.getWebSites();
         if (contact.getImJabberId() != null)
             this.jabberId = contact.getImJabberId();
         if (contact.getCorporateId() != null)
@@ -434,13 +439,18 @@ public abstract class AbstractContact implements IContact
     }
 
     @Override
-    public void clearEmailAddresses()
+    public Set<WebSite> getWebSites()
     {
-        synchronized (emailAddresses)
+        Set<WebSite> copyOfWebSites = new HashSet<>();
+
+        synchronized (webSites)
         {
-            emailAddresses.clear();
+            copyOfWebSites.addAll(webSites);
         }
+
+        return copyOfWebSites;
     }
+
 
     @Override
     public String getEmailWithType(EmailAddress.EmailType type)
@@ -468,6 +478,20 @@ public abstract class AbstractContact implements IContact
         synchronized (emailAddresses)
         {
             emailAddresses.add(emailAddress);
+        }
+    }
+
+    @Override
+    public void addWebSite(String website, WebSite.WebSiteType type)
+    {
+        if (StringsUtil.isNullOrEmpty(website))
+            return;
+
+        WebSite webSite = new WebSite(type, website);
+
+        synchronized (webSites)
+        {
+            webSites.add(webSite);
         }
     }
 
@@ -638,6 +662,7 @@ public abstract class AbstractContact implements IContact
         if ( phoneNumbers!= null && !phoneNumbers.equals(that.phoneNumbers)) return false;
         if ( emailAddresses!= null && !emailAddresses.equals(that.emailAddresses)) return false;
         if ( postalAddresses!= null && !postalAddresses.equals(that.postalAddresses)) return false;
+        if ( webSites!= null && !webSites.equals(that.webSites)) return false;
         if ( jabberId!= null && !jabberId.equals(that.jabberId)) return false;
         if ( corporateId!= null && !corporateId.equals(that.corporateId)) return false;
         return ( companyId!= null && companyId.equals(that.companyId) );
@@ -656,6 +681,7 @@ public abstract class AbstractContact implements IContact
         if( phoneNumbers != null) result = 31 * result + phoneNumbers.hashCode();
         if( emailAddresses != null) result = 31 * result + emailAddresses.hashCode();
         if( postalAddresses != null) result = 31 * result + postalAddresses.hashCode();
+        if( webSites != null) result = 31 * result + webSites.hashCode();
         if( jabberId != null) result = 31 * result + jabberId.hashCode();
         if( corporateId != null) result = 31 * result + corporateId.hashCode();
         if( companyId != null) result = 31 * result + companyId.hashCode();
@@ -713,6 +739,12 @@ public abstract class AbstractContact implements IContact
             Log.getLogger().info(dumpLogTag, "    postalAddresses=" + postalAddresses.size());
             for(PostalAddress postal: postalAddresses) {
                 Log.getLogger().info(dumpLogTag, "       postalAddress=" + postal.getType()+"/"+postal.getValue());
+            }
+        }
+        if( webSites != null && webSites.size() > 0 ) {
+            Log.getLogger().info(dumpLogTag, "    webSites=" + webSites.size());
+            for(WebSite webSite: webSites) {
+                Log.getLogger().info(dumpLogTag, "       webSite=" + webSite.getType()+"/"+webSite.getValue());
             }
         }
     }

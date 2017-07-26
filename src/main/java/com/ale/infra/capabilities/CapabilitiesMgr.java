@@ -23,7 +23,14 @@ public class CapabilitiesMgr implements ICapabilities
     private static final String WEBRTC_FOR_MOBILE_VIDEO = "WEBRTC_FOR_MOBILE_VIDEO";
     private static final String BUBBLE_PARTICIPANT_COUNT = "BUBBLE_PARTICIPANT_COUNT";
     private static final String FILE_SHARING_QUOTA_GB = "FILE_SHARING_QUOTA_GB";
-    private static final int DEFAULT_MAX_PARTICIPANTS = 20;
+    private static final String GET_CONFERENCES = "GET_CONFERENCES";
+    private static final String CONFERENCE_ALLOWED = "CONFERENCE_ALLOWED";
+    private static final String CONFERENCE_DIAL_OUT = "CONFERENCE_DIAL_OUT";
+    private static final String CONFERENCE_PARTICIPANT_COUNT ="CONFERENCE_PARTICIPANT_COUNT";
+    private static final String CONFERENCE_RECORDING = "CONFERENCE_RECORDING";
+
+    private static final int DEFAULT_MAX_BUBBLE_PARTICIPANTS = 20;
+    private static final int DEFAULT_MAX_CONFERENCE = 100;
     private final ProfileProxy m_profileProxy;
     private List<Feature> m_features;
     private boolean m_isInDebugMode = false;
@@ -124,7 +131,7 @@ public class CapabilitiesMgr implements ICapabilities
             }
         }
 
-        return DEFAULT_MAX_PARTICIPANTS;
+        return DEFAULT_MAX_BUBBLE_PARTICIPANTS;
     }
 
     @Override
@@ -142,5 +149,73 @@ public class CapabilitiesMgr implements ICapabilities
         }
 
         return 1;
+    }
+
+    @Override
+    public int getMaxConferenceParticipants()
+    {
+        if (m_features != null)
+        {
+            for (Feature feature : m_features)
+            {
+                if (CONFERENCE_PARTICIPANT_COUNT.equals(feature.getUniqueRef()))
+                {
+                    return feature.getLimitMax();
+                }
+            }
+        }
+
+        return DEFAULT_MAX_CONFERENCE;
+    }
+
+    @Override
+    public boolean isConferenceAllowed()
+    {
+        if (m_features != null)
+        {
+            for (Feature feature : m_features)
+            {
+                if (CONFERENCE_ALLOWED.equals(feature.getUniqueRef()))
+                    return true;
+            }
+        }
+
+        return false;
+    }
+
+    @Override
+    public boolean isConferenceDialOutAllowed()
+    {
+        if (m_isInDebugMode)
+            return true;
+
+        if (m_features != null)
+        {
+            for (Feature feature : m_features)
+            {
+                if (CONFERENCE_DIAL_OUT.equals(feature.getUniqueRef()))
+                    return true;
+            }
+        }
+
+        return false;
+    }
+
+    @Override
+    public boolean isConferenceRecordingAllowed()
+    {
+        if (m_isInDebugMode)
+            return true;
+
+        if (m_features != null)
+        {
+            for (Feature feature : m_features)
+            {
+                if (CONFERENCE_RECORDING.equals(feature.getUniqueRef()))
+                    return true;
+            }
+        }
+
+        return false;
     }
 }

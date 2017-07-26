@@ -123,9 +123,14 @@ public class CallLog implements Comparable<CallLog>, IMultiSelectable
         return 0;
     }
 
+    public boolean isNewMissed()
+    {
+        return !m_isAck && isMissed();
+    }
+
     public boolean isMissed()
     {
-        return !m_isAck && !"answered".equals(m_state) && !m_isOutgoing;
+        return !"answered".equals(m_state) && !m_isOutgoing;
     }
 
     public void setIsAck()

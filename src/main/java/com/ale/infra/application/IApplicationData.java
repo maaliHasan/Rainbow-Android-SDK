@@ -132,4 +132,6 @@ public interface IApplicationData {
     void setPgiOtherPhoneNumberList(List<String> pgiOtherPhoneNumberList);
 
     void addPgiOtherPhoneNumberList(String phoneNb);
+
+    String getServerUrlForCDN();
 }

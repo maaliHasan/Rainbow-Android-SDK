@@ -3,6 +3,7 @@ package com.ale.infra.proxy.avatar;
 import android.graphics.Bitmap;
 
 import com.ale.infra.contact.Contact;
+import com.ale.infra.http.adapter.concurrent.RainbowServiceException;
 
 import java.io.File;
 
@@ -18,6 +19,6 @@ public interface IAvatarProxy {
     {
         void onAvatarSuccess(Bitmap bmp);
 
-        void onAvatarFailure();
+        void onAvatarFailure(RainbowServiceException exception);
     }
 }

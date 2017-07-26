@@ -1,6 +1,7 @@
 package com.ale.infra.xmpp.xep.pgiconference;
 
 import com.ale.util.StringsUtil;
+import com.ale.util.log.Log;
 
 import org.jivesoftware.smack.packet.ExtensionElement;
 import org.jivesoftware.smack.provider.ExtensionElementProvider;
@@ -154,6 +155,7 @@ public class PgiConferenceInfoExtension implements ExtensionElement {
 
                         case UpdatedParticipants.PARTICIPANTS_ELEMENT:
                         case UpdatedParticipants.ELEMENT:
+                        case UpdatedParticipants.ADDED_PARTICIPANTS_ELEMENT:
                             UpdatedParticipants updatedParts = new UpdatedParticipants();
                             updatedParticipants = updatedParts.parse(parser);
                             break;

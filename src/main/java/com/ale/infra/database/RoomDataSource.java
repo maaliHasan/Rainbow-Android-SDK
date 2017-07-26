@@ -54,6 +54,16 @@ public class RoomDataSource {
                     StringsUtil.isNullOrEmpty(room.getCreatorId()) ? "" : room.getCreatorId());
             values.put(DatabaseHelper.LAST_UPDATED, new Date().getTime());
 
+            if (room.getScheduledStartDate()!= null)
+                values.put(DatabaseHelper.ROOM_SCHEDULED_START_DATE, room.getScheduledStartDate().getTime());
+            else
+                values.put(DatabaseHelper.ROOM_SCHEDULED_START_DATE, 0L);
+
+            if (room.isScheduledConf())
+                values.put(DatabaseHelper.ROOM_SCHEDULED_CONF, 1);
+            else
+                values.put(DatabaseHelper.ROOM_SCHEDULED_CONF, 0);
+
             deleteRoomContact(room);
 
             for (int i = 0; i < room.getParticipants().getCount(); i++) {
@@ -222,6 +232,16 @@ public class RoomDataSource {
         room.setName(cursor.getString(cursor.getColumnIndex(DatabaseHelper.ROOM_NAME)));
         room.setJid(cursor.getString(cursor.getColumnIndex(DatabaseHelper.ROOM_JID)));
         room.setCreatorId(cursor.getString(cursor.getColumnIndex(DatabaseHelper.ROOM_CREATOR_ID)));
+        long date = cursor.getColumnIndex(DatabaseHelper.ROOM_SCHEDULED_START_DATE);
+        if (date != 0L)
+            room.setScheduledStartDate(new Date(date));
+
+        int i = cursor.getColumnIndex(DatabaseHelper.ROOM_SCHEDULED_CONF);
+        if (i == 0)
+            room.setScheduledConf(false);
+        else
+            room.setScheduledConf(false);
+
         List<RoomParticipant> list = getRoomParticipants(room.getId());
         if (list!= null) {
             room.setParticipants(list);

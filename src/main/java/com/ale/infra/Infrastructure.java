@@ -81,19 +81,16 @@ import com.ale.infra.proxy.users.UsersProxy;
 import com.ale.infra.rainbow.api.IServicesFactory;
 import com.ale.infra.rainbow.api.RainbowServicesFactory;
 import com.ale.infra.xmpp.XmppConnection;
+import com.ale.listener.IConnectionListener;
 import com.ale.rainbow.datanetworkmonitor.DataNetworkMonitor;
 import com.ale.rainbow.periodicworker.PeriodicWorkerManager;
 import com.ale.rainbow.periodicworker.ScreenStateReceiver;
-import com.ale.listener.IConnectionListener;
-import com.ale.rainbowsdk.RainbowSdk;
 import com.ale.security.util.HttpAuthorizationUtil;
 import com.ale.util.Duration;
 import com.ale.util.log.Log;
 import com.android.volley.NoConnectionError;
 
 import java.net.HttpURLConnection;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.Timer;
 import java.util.TimerTask;
 
@@ -450,7 +447,7 @@ public class Infrastructure implements IInfrastructure
                 m_roomMgr.setChatMgr(null);
             }
 
-            m_connection.forceCloseWebSocket();
+            m_connection.disconnect();
             m_connection = null;
         }
 
@@ -517,7 +514,7 @@ public class Infrastructure implements IInfrastructure
             public void run()
             {
                 if (m_restAsyncRequest != null)
-                    m_restAsyncRequest.abort();
+                    m_restAsyncRequest.shutdown();
             }
         });
         thread.start();
@@ -756,9 +753,14 @@ public class Infrastructure implements IInfrastructure
                 }
                 catch (Exception e)
                 {
-                    Log.getLogger().error(LOG_TAG, "Impossible to start xmpp connection", e);
-                    Intent intent = new Intent(RainbowIntent.ACTION_RAINBOW_LOGIN_ERROR);
-                    m_applicationContext.sendBroadcast(intent);
+                    if(m_isApiSessionStarted)
+                    {
+                        Log.getLogger().error(LOG_TAG, "Impossible to start xmpp connection", e);
+                        Intent intent = new Intent(RainbowIntent.ACTION_RAINBOW_LOGIN_ERROR);
+                        m_applicationContext.sendBroadcast(intent);
+                    }
+                    else
+                        Log.getLogger().info(LOG_TAG,"Already stopped, ignore exception: ", e);
                 }
             }
         });
@@ -1004,5 +1006,10 @@ public class Infrastructure implements IInfrastructure
         loadDB.setName("connectThread");
         loadDB.start();
 
+    }
+
+
+    public boolean isUnderUnitTest(){
+        return false;
     }
 }

@@ -12,8 +12,8 @@ import android.support.v4.app.NotificationCompat;
 import com.ale.infra.application.RainbowContext;
 import com.ale.infra.application.RainbowIntent;
 import com.ale.infra.datastorage.DataStorage;
-import com.ale.infra.googlepush.GooglePushRegService;
 import com.ale.infra.manager.INotificationFactory;
+import com.ale.infra.manager.TelephonyMgr;
 import com.ale.infra.platformservices.IFileAccessService;
 import com.ale.preferences.PreferencesFactory;
 import com.ale.rainbow.AndroidLogger;
@@ -23,8 +23,6 @@ import com.ale.security.util.SSLInitException;
 import com.ale.security.util.SSLUtil;
 import com.ale.util.StringsUtil;
 import com.ale.util.log.Log;
-import com.google.android.gms.common.ConnectionResult;
-import com.google.android.gms.common.GoogleApiAvailability;
 import com.google.android.gms.common.GooglePlayServicesNotAvailableException;
 import com.google.android.gms.common.GooglePlayServicesRepairableException;
 import com.google.android.gms.security.ProviderInstaller;
@@ -75,8 +73,6 @@ public class RainbowSdk
     private NotificationCompat.Builder m_notificationBuilder;
 
     private INotificationFactory m_notificationFactory = null;
-
-    private String m_pushGoogleSenderId = "";
 
     private RainbowSdk()
     {
@@ -228,6 +224,20 @@ public class RainbowSdk
         return m_myProfile;
     }
 
+    public TelephonyMgr webRTC() {
+        if (RainbowContext.getInfrastructure().getXmppConnection() != null && RainbowContext.getInfrastructure().getXmppConnection().isConnected()) {
+            return RainbowContext.getInfrastructure().getXmppConnection().getTelephonyMgr();
+        }
+        throw new IllegalStateException("You are not connected to the rainbow server.");
+    }
+
+    void uninitializeModules() {
+        m_contacts = null;
+        m_conversations = null;
+        m_im = null;
+        m_myProfile = null;
+    }
+
     public boolean isInitialized() {
         return m_isInitialized;
     }
@@ -309,31 +319,8 @@ public class RainbowSdk
 
 //        m_context.bindService(new Intent(m_context, RainbowService.class), m_rainbowServiceConnection, Context.BIND_AUTO_CREATE | Context.BIND_IMPORTANT);
 
-        if (checkPlayServices()) {
-            Log.getLogger().verbose(LOG_TAG, "Starting GooglePushRegService");
-            // Start IntentService to register this application with GCM.
-            Intent intent = new Intent(m_context, GooglePushRegService.class);
-            m_context.startService(intent);
-        } else {
-            Log.getLogger().error(LOG_TAG, "No PlayService available for GooglePush");
-        }
     }
 
-    private boolean checkPlayServices() {
-        GoogleApiAvailability apiAvailability = GoogleApiAvailability.getInstance();
-        int resultCode = apiAvailability.isGooglePlayServicesAvailable(m_context);
-        if (resultCode != ConnectionResult.SUCCESS) {
-            if (apiAvailability.isUserResolvableError(resultCode)) {
-                Log.getLogger().info(LOG_TAG, "GooglePlayService not available; " + resultCode);
-//                apiAvailability.getErrorDialog(getApplicationContext(), resultCode, PLAY_SERVICES_RESOLUTION_REQUEST)
-//                        .show();
-            } else {
-                Log.getLogger().info(LOG_TAG, "This device is not supported.");
-            }
-            return false;
-        }
-        return true;
-    }
 
     public INotificationFactory getNotificationFactory() {
         return m_notificationFactory;
@@ -385,14 +372,6 @@ public class RainbowSdk
         } else {
             Log.getLogger().info(LOG_TAG, "RainbowSdk is NOT initialized");
         }
-    }
-
-    public void setPushGoogleSenderId(String pushGoogleSenderId) {
-        m_pushGoogleSenderId = pushGoogleSenderId;
-    }
-
-    public String getPushGoogleSenderId() {
-        return m_pushGoogleSenderId;
     }
 
 }

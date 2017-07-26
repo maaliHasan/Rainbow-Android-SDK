@@ -5,6 +5,7 @@ import android.content.Intent;
 import android.support.v4.util.Pair;
 
 import com.ale.infra.application.RainbowContext;
+import com.ale.infra.application.RainbowIntent;
 import com.ale.infra.contact.Contact;
 import com.ale.infra.contact.DirectoryContact;
 import com.ale.infra.contact.IContactCacheMgr;
@@ -39,6 +40,7 @@ import com.ale.infra.xmpp.xep.MamIQResult;
 import com.ale.infra.xmpp.xep.MamMessagePacketExtension;
 import com.ale.infra.xmpp.xep.MamMgr;
 import com.ale.infra.xmpp.xep.ManagementReceipt.ManagementReceiptPacketExtension;
+import com.ale.infra.xmpp.xep.Room.RoomConferenceEvent;
 import com.ale.infra.xmpp.xep.Room.RoomMultiUserChatEvent;
 import com.ale.infra.xmpp.xep.Time.TimeReceiveIq;
 import com.ale.infra.xmpp.xep.Time.TimeRequestIq;
@@ -283,6 +285,10 @@ public class ChatMgr implements IChatMgr, ChatManagerListener, ChatMessageListen
             }
         });
 
+        ProviderManager.addExtensionProvider(RoomConferenceEvent.ELEMENT, RoomConferenceEvent.NAMESPACE, new RoomConferenceEvent.Provider());
+
+
+
     }
 
     public void getConversationsFromDB(){
@@ -356,19 +362,26 @@ public class ChatMgr implements IChatMgr, ChatManagerListener, ChatMessageListen
         ExtensionElement deliveryTimestampExtension = message.getExtension(RainbowDeliveryTimestampReceipt.ELEMENT, RainbowDeliveryTimestampReceipt.NAMESPACE);
         ManagementReceiptPacketExtension managementExtension = (ManagementReceiptPacketExtension) message.getExtension(ManagementReceiptPacketExtension.NAMESPACE);
         CarbonExtension copyCarbonExtension = (CarbonExtension) message.getExtension(CarbonExtension.NAMESPACE);
-        RainbowDeletedReceipt deletedExtension = (RainbowDeletedReceipt) message.getExtension(RainbowDeletedReceipt.NAMESPACE);
-        RainbowArchived archived =  message.getExtension(RainbowArchived.ELEMENT, RainbowArchived.NAMESPACE);
+        RainbowDeletedReceipt deletedExtension = message.getExtension(RainbowDeletedReceipt.ELEMENT, RainbowDeletedReceipt.NAMESPACE);
+        RainbowArchived archived = message.getExtension(RainbowArchived.ELEMENT, RainbowArchived.NAMESPACE);
         RainbowOutOfBandData outOfBand = message.getExtension(RainbowOutOfBandData.ELEMENT, RainbowOutOfBandData.NAMESPACE);
         CallLogPacketExtension callLogExt = message.getExtension(CallLogPacketExtension.ELEMENT, CallLogPacketExtension.NAMESPACE);
         PgiConferenceInfoExtension pgiConfInfoExt = message.getExtension(PgiConferenceInfoExtension.ELEMENT, PgiConferenceInfoExtension.NAMESPACE);
+
         ExtensionElement deliveryRequestExtension = message.getExtension(DeliveryReceiptRequest.ELEMENT, DeliveryReceipt.NAMESPACE);
+
+        RoomConferenceEvent roomConferenceEvent = message.getExtension(RoomConferenceEvent.ELEMENT, RoomConferenceEvent.NAMESPACE);
 
         if (mamExtension != null) {
             manageMessageMam(mamExtension);
+        } else if (roomConferenceEvent != null) {
+            // User has been invited to join a conference
+            MultiUserChatMgr multiUserChatMgr = RainbowContext.getInfrastructure().getMultiUserChatMgr();
+            multiUserChatMgr.refreshRoomConferenceInfo(roomConferenceEvent.getRoomJid(), roomConferenceEvent.getConfEndPointId());
         } else if (deliveryReceiptExtension != null && deliveryReceiptExtension instanceof RainbowDeliveryReceivedReceipt) {
             RainbowDeliveryReceivedReceipt rainbowDeliveryReceivedReceipt = (RainbowDeliveryReceivedReceipt) deliveryReceiptExtension;
             RainbowDeliveryTimestampReceipt rainbowDeliveryTimestamp = null;
-            if (deliveryTimestampExtension != null &&  deliveryTimestampExtension instanceof RainbowDeliveryTimestampReceipt) {
+            if (deliveryTimestampExtension != null && deliveryTimestampExtension instanceof RainbowDeliveryTimestampReceipt) {
                 rainbowDeliveryTimestamp = (RainbowDeliveryTimestampReceipt) deliveryTimestampExtension;
             }
             Log.getLogger().verbose(LOG_TAG, "RainbowDeliveryReceivedReceipt Extension detected ; event=" + rainbowDeliveryReceivedReceipt.getEvent() + " entity=" + rainbowDeliveryReceivedReceipt.getEntity());
@@ -664,7 +677,17 @@ public class ChatMgr implements IChatMgr, ChatManagerListener, ChatMessageListen
             if( pgiConf.getId().equals(pgiConfInfoExt.getConfId())) {
                 Log.getLogger().verbose(LOG_TAG, "  PgiConference found");
 
+                boolean wasActive = pgiConf.isConfActive();
                 pgiConf.update(pgiConfInfoExt);
+
+                if (pgiConf.isConfActive() && !wasActive) {
+                    Intent intent = new Intent(RainbowIntent.ACTION_RAINBOW_PGI_JOIN_SUCCESS);
+                    m_applicationContext.sendBroadcast(intent);
+                }
+                if (!pgiConf.isConfActive() && wasActive) {
+                    //de associate room from conference
+                    RainbowContext.getInfrastructure().getRoomMgr().dissociatePgiConference(pgiConf.getId());
+                }
             }
         }
     }
@@ -1180,11 +1203,11 @@ public class ChatMgr implements IChatMgr, ChatManagerListener, ChatMessageListen
             return;
         }
 
-        refreshMessages(conversation.getId(), conversation.getJid(), conversation.getContact().getImJabberId(), nbMessagesToRetrieve, iMamNotification);
+        refreshMessages(conversation, null, conversation.getContact().getImJabberId(), nbMessagesToRetrieve, iMamNotification);
     }
 
-    void refreshMessages(final String convId, final String to, final String with, final int nbMessagesToRetrieve, IMamNotification iMamNotification) {
-        if (convId == null) {
+    void refreshMessages(Conversation conversation, final String to, final String with, final int nbMessagesToRetrieve, IMamNotification iMamNotification) {
+        if (conversation == null) {
             Log.getLogger().warn(LOG_TAG, "refreshMessage ; convId is NULL");
 
             if (iMamNotification != null)
@@ -1194,44 +1217,40 @@ public class ChatMgr implements IChatMgr, ChatManagerListener, ChatMessageListen
         }
 
         m_mamNotif = iMamNotification;
-        Conversation c = getConversationFromJid(to);
+        Conversation c = getConversationFromJid(conversation.getJid());
         if (c == null)
-            c = getConversationFromJid(convId);
+            c = getConversationFromJid(conversation.getId());
 
         final Conversation conv = c;
         if (RainbowContext.getInfrastructure().isXmppConnected() && conv != null) {
             Thread myThread = new Thread() {
                 public void run() {
                     try {
+                        conv.setMamInProgress(true);
 
+                        StanzaListener packetListener = new StanzaListener() {
+                            @Override
+                            public void processPacket(Stanza packet) throws SmackException.NotConnectedException {
+                                MamIQResult iqResult = (MamIQResult) packet;
 
-                        if (conv != null) {
-                            conv.setMamInProgress(true);
+                                conv.setMamInProgress(false);
 
-                            StanzaListener packetListener = new StanzaListener() {
-                                @Override
-                                public void processPacket(Stanza packet) throws SmackException.NotConnectedException {
-                                    MamIQResult iqResult = (MamIQResult) packet;
-
-                                    conv.setMamInProgress(false);
-
-                                    if (conversationDataSource != null)
-                                        conversationDataSource.synchroDB(conv);
-                                    ArrayItemList<IMMessage> messages = conv.getMessages();
-                                    if (messages != null && messages.getCount() > 0)
-                                    {
-                                        conv.setLastMessage(messages.get(messages.getCount() - 1));
-                                    }
-                                    conv.setFirstMamDone(true);
-                                    m_mamNotif.complete(messages, iqResult.isComplete());
-
-                                    m_connection.removeSyncStanzaListener(this);
+                                if (conversationDataSource != null)
+                                    conversationDataSource.synchroDB(conv);
+                                ArrayItemList<IMMessage> messages = conv.getMessages();
+                                if (messages != null && messages.getCount() > 0)
+                                {
+                                    conv.setLastMessage(messages.get(messages.getCount() - 1));
                                 }
-                            };
+                                conv.setFirstMamDone(true);
+                                m_mamNotif.complete(messages, iqResult.isComplete());
 
-                            m_connection.addSyncStanzaListener(packetListener, new StanzaTypeFilter(MamIQResult.class));
-                            m_mamMgr.getArchivedMessages(to, with, nbMessagesToRetrieve);
-                        }
+                                m_connection.removeSyncStanzaListener(this);
+                            }
+                        };
+
+                        m_connection.addSyncStanzaListener(packetListener, new StanzaTypeFilter(MamIQResult.class));
+                        m_mamMgr.getArchivedMessages(to, with, nbMessagesToRetrieve);
                     } catch (Exception e) {
                         Log.getLogger().error(LOG_TAG, "refreshMessages; Exception=" + e);
                         m_mamNotif.error(e);
@@ -1985,6 +2004,7 @@ public class ChatMgr implements IChatMgr, ChatManagerListener, ChatMessageListen
             ProviderManager.removeExtensionProvider(CallLogPacketExtension.ELEMENT, CallLogPacketExtension.NAMESPACE);
             ProviderManager.removeExtensionProvider(PgiConferenceInfoExtension.ELEMENT, PgiConferenceInfoExtension.NAMESPACE);
             ProviderManager.removeIQProvider(TimeRequestIq.ELEMENT, TimeRequestIq.NAMESPACE);
+            ProviderManager.removeExtensionProvider(RoomConferenceEvent.ELEMENT, RoomConferenceEvent.NAMESPACE);
 
             ChatManager.getInstanceFor(m_connection).removeChatListener(this);
 

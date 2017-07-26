@@ -15,6 +15,7 @@ public interface IRainbowContact {
     String getLastName();
     String getLoginEmail();
     RainbowPresence getPresence();
+    CalendarPresence getCalendarPresence();
     String getCompanyName();
     boolean isBot();
     String getMainEmailAddress();

@@ -19,10 +19,12 @@ import com.ale.infra.xmpp.xep.DeliveryReceipt.RainbowDeliveryReceivedReceipt;
 import com.ale.infra.xmpp.xep.DeliveryReceipt.RainbowDeliveryTimestampReceipt;
 import com.ale.infra.xmpp.xep.IMamNotification;
 import com.ale.infra.xmpp.xep.MUC.RainbowGroupChatInvitation;
+import com.ale.infra.xmpp.xep.Room.RoomConferenceEvent;
 import com.ale.infra.xmpp.xep.Room.RoomMultiUserChatEvent;
 import com.ale.infra.xmpp.xep.archived.RainbowArchived;
 import com.ale.infra.xmpp.xep.message.StoreMessagePacketExtension;
 import com.ale.infra.xmpp.xep.outofband.RainbowOutOfBandData;
+import com.ale.util.DateTimeUtil;
 import com.ale.util.Duration;
 import com.ale.util.StringsUtil;
 import com.ale.util.log.Log;
@@ -180,7 +182,12 @@ public class MultiUserChatMgr implements IChatMgr, Conversation.ConversationList
         DeliveryReceiptManager.getInstanceFor(m_connection).setAutoReceiptMode(DeliveryReceiptManager.AutoReceiptMode.disabled);
 
         ProviderManager.removeExtensionProvider(GroupChatInvitation.ELEMENT, GroupChatInvitation.NAMESPACE);
+        ProviderManager.removeExtensionProvider(RoomMultiUserChatEvent.ELEMENT, RoomMultiUserChatEvent.NAMESPACE);
+        ProviderManager.removeExtensionProvider(GroupChatInvitation.ELEMENT, GroupChatInvitation.NAMESPACE);
+
+
         ProviderManager.addExtensionProvider(RoomMultiUserChatEvent.ELEMENT, RoomMultiUserChatEvent.NAMESPACE, new RoomMultiUserChatEvent.Provider());
+
 
         //detect incoming multichat invitations
         ProviderManager.addExtensionProvider(GroupChatInvitation.ELEMENT, GroupChatInvitation.NAMESPACE, new RainbowGroupChatInvitation.Provider());
@@ -458,7 +465,7 @@ public class MultiUserChatMgr implements IChatMgr, Conversation.ConversationList
             return;
         if (muc == null)
             return;
-        if (!m_connection.isAuthenticated())
+        if (m_connection == null || !m_connection.isAuthenticated())
             return;
 
         Log.getLogger().verbose(LOG_TAG, "joinIfNeeded: " + room.getName());
@@ -571,7 +578,7 @@ public class MultiUserChatMgr implements IChatMgr, Conversation.ConversationList
             Log.getLogger().verbose(LOG_TAG, ">refreshMessages; " + conversation.getName());
             Thread myThread2 = new Thread() {
                 public void run() {
-                    m_chatMgr.refreshMessages(conversation.getId(), conversation.getJid(), m_contactCache.getUser().getImJabberId(), nbMessagesToRetrieve, iMamNotification);
+                    m_chatMgr.refreshMessages(conversation, conversation.getJid(), m_contactCache.getUser().getImJabberId(), nbMessagesToRetrieve, iMamNotification);
 
                     MultiUserChat multiUserChat = m_poolMucChat.get(conversation);
                     if (multiUserChat == null && !StringsUtil.isNullOrEmpty(conversation.getJid()))
@@ -651,13 +658,38 @@ public class MultiUserChatMgr implements IChatMgr, Conversation.ConversationList
                 m_poolMucChat.put(conv, multiUserChat);
             }
 
-            IMMessage imMessage;
+            IMMessage imMessage = null;
             RoomMultiUserChatEvent roomMultiUserChatEvent = message.getExtension(RoomMultiUserChatEvent.ELEMENT, RoomMultiUserChatEvent.NAMESPACE);
             if (roomMultiUserChatEvent != null)
             {
                 imMessage = new IMMessage(roomMultiUserChatEvent.getJid(), roomMultiUserChatEvent.getEventType());
-            }
-            else
+                switch (roomMultiUserChatEvent.getEventType()) {
+
+                    case CONFERENCEADD:
+                        final Room roomToUpdate  = m_roomMgr.getRoomByJid(message.getFrom());
+                        if (room != null) {
+                            room.setInactiveConference(false);
+                            TimerTask delayedTask = new TimerTask() {
+                                @Override
+                                public void run() {
+                                    m_roomMgr.getRoomData(roomToUpdate, null);
+                                }
+                            };
+                            Timer updateRoom = new Timer();
+                            updateRoom.schedule(delayedTask, Duration.FIVE_SECONDS_IN_MILLISECONDS);
+                        }
+                        break;
+                    case CONFERENCEREMOVED:
+                        room = m_roomMgr.getRoomByJid(message.getFrom());
+                        if (room != null) {
+                            room.setInactiveConference(true);
+                            m_roomMgr.getRoomData(room, null);
+                        }
+                        break;
+                    default:
+                        break;
+                }
+            }else
             {
                 imMessage = new IMMessage(from, message.getBody(foundLanguage), sent);
             }
@@ -740,6 +772,20 @@ public class MultiUserChatMgr implements IChatMgr, Conversation.ConversationList
                 Log.getLogger().verbose(LOG_TAG, "parseChatStateExtension exception : " + ex.toString());
             }
         }
+    }
+
+    public void refreshRoomConferenceInfo (String roomJid, String confEndPoint) {
+
+        if (StringsUtil.isNullOrEmpty(roomJid) ) {
+            Log.getLogger().warn(LOG_TAG, "refreshRoomConferenceInfo: Bad informations: " +roomJid + " : " + confEndPoint );
+            return;
+        }
+        Room room = m_roomMgr.getRoomByJid(roomJid);
+        if (room == null) {
+            Log.getLogger().warn(LOG_TAG, "refreshRoomConferenceInfo: Bad roomId: " +roomJid );
+            return;
+        }
+        m_roomMgr.getRoomData(room,null);
     }
 
 

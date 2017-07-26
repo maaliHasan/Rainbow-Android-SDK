@@ -14,7 +14,6 @@ import com.ale.infra.http.adapter.concurrent.RainbowServiceException;
 import com.ale.infra.platformservices.IDataNetworkMonitor;
 import com.ale.infra.proxy.authentication.AuthenticationResponse;
 import com.ale.infra.proxy.authentication.IAuthentication;
-import com.ale.infra.xmpp.XmppConnection;
 import com.ale.listener.IConnectionListener;
 import com.ale.listener.ResponseListener;
 import com.ale.listener.SigninResponseListener;
@@ -22,6 +21,7 @@ import com.ale.listener.SignoutResponseListener;
 import com.ale.listener.StartResponseListener;
 import com.ale.rainbow.datanetworkmonitor.DataNetworkMonitor;
 import com.ale.service.RainbowService;
+import com.ale.util.StringsUtil;
 import com.ale.util.log.Log;
 
 import java.util.List;
@@ -93,16 +93,12 @@ public class Connection
         Log.getLogger().info(LOG_TAG, ">signin for " + login);
 
         if (m_rainbowServiceConnection == null)
-            throw new IllegalStateException("You must call start methode before signin");
+            throw new IllegalStateException("You must call start method before signin");
 
         String exHost = RainbowContext.getPlatformServices().getApplicationData().getHost();
-        if (host != null && !host.equals(exHost) || exHost != null && !exHost.equals(host)) {
-            resetCacheAndDatabase();
-        }
 
-        if ("".equals(host)) {
-            RainbowContext.getPlatformServices().getApplicationData().setHost(null);
-        } else {
+        if (!StringsUtil.isNullOrEmpty(host) && !host.equals(exHost)) {
+            resetCacheAndDatabase();
             RainbowContext.getPlatformServices().getApplicationData().setHost(host);
         }
 
@@ -209,15 +205,12 @@ public class Connection
     {
         RainbowContext.getPlatformServices().getApplicationData().setLoggedOut(true);
 
-        XmppConnection connection = RainbowContext.getInfrastructure().getXmppConnection();
-        if (connection != null) {
-            connection.disconnect();
-        }
-
         RainbowSdk.instance().conversations().unregisterChangeListener();
         RainbowSdk.instance().contacts().unregisterChangeListener();
         RainbowSdk.instance().im().unregisterChangeListener();
         RainbowSdk.instance().contacts().unregisterInvitationChangeListener();
+
+        Log.getLogger().info(LOG_TAG, ">Uninitialize and exit");
 
         uninitialize();
         IApplicationData applicationData = RainbowContext.getPlatformServices().getApplicationData();
@@ -264,6 +257,8 @@ public class Connection
             dataNetworkMonitor.stop();
 
         //		m_periodicWorkerManager.unregisterWorkers();
+
+        RainbowSdk.instance().uninitializeModules();
 
         // flag the application is stopped
         RainbowContext.setApplicationState(RainbowContext.ApplicationState.STOPPED);

@@ -37,6 +37,7 @@ public class UserPreferences implements IUserPreferences
 	private static final String SOUND_ON_NOTIFICATIONS = "rainbow.parameters.sound.notifications";
 	private static final String AUTOMATIC_START = "rainbow.parameters.auto.start";
 	private static final String LARGE_TEXT_CONVERSATIONS = "rainbow.parameters.largetext.conversations";
+	private static final String USE_CDN = "rainbow.parameters.use.cdn";
 	private IDataStorage m_dataStorage;
 	
 	public UserPreferences(IDataStorage dataStorage)
@@ -132,6 +133,11 @@ public class UserPreferences implements IUserPreferences
 	@Override
 	public boolean isLargeTextForConversations() {
 		return m_dataStorage.getValue(LARGE_TEXT_CONVERSATIONS, false);
+	}
+
+	@Override
+	public boolean isCDNUsed() {
+		return m_dataStorage.getValue(USE_CDN, false);
 	}
 
 	@Override

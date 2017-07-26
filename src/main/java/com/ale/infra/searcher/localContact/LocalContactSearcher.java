@@ -27,11 +27,9 @@ import android.Manifest;
 import android.content.Context;
 import android.content.pm.PackageManager;
 import android.database.Cursor;
-import android.graphics.Bitmap;
 import android.net.Uri;
 import android.os.Build;
 import android.provider.ContactsContract;
-import android.provider.MediaStore;
 
 import com.ale.infra.contact.EmailAddress;
 import com.ale.infra.contact.IBitmapConverter;
@@ -39,10 +37,9 @@ import com.ale.infra.contact.IContact;
 import com.ale.infra.contact.LocalContact;
 import com.ale.infra.contact.PhoneNumber;
 import com.ale.infra.contact.PostalAddress;
+import com.ale.infra.contact.WebSite;
 import com.ale.util.log.Log;
 
-import java.io.FileNotFoundException;
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -272,7 +269,8 @@ public class LocalContactSearcher implements ILocalContactSearcher
             return contacts;
 
         } finally {
-            contactCursor.close();
+            if (contactCursor != null)
+                contactCursor.close();
         }
         return contacts;
     }
@@ -361,7 +359,7 @@ public class LocalContactSearcher implements ILocalContactSearcher
                 // get postal addresses:
                 if (mime != null && mime.equalsIgnoreCase(ADDRESS_MIME)) {
                     PostalAddress.AddressType enumType = PostalAddress.AddressType.UNKNOWN;
-                    int type = getInt(detailsCursor, EMAIL_TYPE);
+                    int type = getInt(detailsCursor, ADDRESS_TYPE);
                     if (type == (ADDRESS_TYPE_WORK)) {
                         enumType = PostalAddress.AddressType.WORK;
                     } else if (type == (ADDRESS_TYPE_HOME)) {
@@ -372,6 +370,26 @@ public class LocalContactSearcher implements ILocalContactSearcher
                         enumType = PostalAddress.AddressType.OTHER;
                     }
                     contact.addPostalAddress(getString(detailsCursor, ADDRESS), enumType);
+                }
+
+                // get web site addresses:
+                if (mime != null && mime.equalsIgnoreCase(WEB_MIME)) {
+                    WebSite.WebSiteType enumType = WebSite.WebSiteType.UNKNOWN;
+                    int type = getInt(detailsCursor, WEB_TYPE);
+                    if (type == (WEB_TYPE_WORK)) {
+                        enumType = WebSite.WebSiteType.WORK;
+                    } else if (type == (WEB_TYPE_HOME)) {
+                        enumType = WebSite.WebSiteType.HOME;
+                    } else if (type == (WEB_TYPE_HOMEPAGE)) {
+                        enumType = WebSite.WebSiteType.HOMEPAGE;
+                    } else if (type == (WEB_TYPE_BLOG)) {
+                        enumType = WebSite.WebSiteType.BLOG;
+                    } else if (type == (WEB_TYPE_CUSTOM)) {
+                        enumType = WebSite.WebSiteType.CUSTOM;
+                    } else {
+                        enumType = WebSite.WebSiteType.OTHER;
+                    }
+                    contact.addWebSite(getString(detailsCursor, WEB_SITE), enumType);
                 }
 
                 // get phone numbers:

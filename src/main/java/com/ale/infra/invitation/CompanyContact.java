@@ -44,6 +44,7 @@ public class CompanyContact implements IMultiSelectable, IDisplayable {
     private Bitmap m_banner;
     private Date m_lastAvatarUpdateDate;
     private Date m_lastBannerUpdateDate;
+    private boolean hasNoAvatarOnServer = false;
 
 
 
@@ -503,6 +504,14 @@ public class CompanyContact implements IMultiSelectable, IDisplayable {
 
     public void seLastAvatarUpdateDateString(String m_lastAvatarUpdateDateString) {
         this.m_lastAvatarUpdateDateString = m_lastAvatarUpdateDateString;
+    }
+
+    public boolean hasNoAvatarOnServer() {
+        return hasNoAvatarOnServer;
+    }
+
+    public void sethasNoAvatarOnServer(boolean hasNoAvatarOnServer) {
+        this.hasNoAvatarOnServer = hasNoAvatarOnServer;
     }
 
 }

@@ -110,6 +110,10 @@ public class ConferenceState {
         return m_participantCount;
     }
 
+    public void setParticipantCount(int participantNb) {
+         m_participantCount = participantNb;
+    }
+
 //    private boolean m_confActive = false;
 //    private boolean m_talkerActive = false;
 //    private boolean m_recordingStarted = false;

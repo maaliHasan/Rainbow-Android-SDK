@@ -35,10 +35,23 @@ public class Room implements IMultiSelectable, IDisplayable {
     private final Set<RoomListener> m_changeListeners = new HashSet<RoomListener>();
     private List<RoomConfEndPoint> m_confEndPoints = new ArrayList<>();
     private PgiConference pgiConference;
+    private boolean scheduledConf;
+    private Date scheduledStartDate;
+    private boolean inactiveConference;
+
+
+    private List<String> guests;
+
+
 
 
     public Room (){
         participants = new ArrayItemList<>();
+        guests = new ArrayList<String>();
+        scheduledConf = false;
+        scheduledStartDate = new Date();
+        inactiveConference = false;
+
         if( RainbowContext.getInfrastructure().getContactCacheMgr() != null)
             m_user = RainbowContext.getInfrastructure().getContactCacheMgr().getUser();
     }
@@ -516,9 +529,38 @@ public class Room implements IMultiSelectable, IDisplayable {
         setCreationDate(newRoom.getCreationDate());
         setEndPoints(newRoom.getEndPoints());
 
+        setPgiConference(newRoom.getPgiConference());
+        setScheduledStartDate(newRoom.getScheduledStartDate());
+        setScheduledConf(newRoom.isScheduledConf());
+
         participants.replaceAll(newRoom.getParticipants().getCopyOfDataList());
 
         notifyRoomUpdated();
+    }
+
+
+    public boolean isScheduledConf() {
+        return scheduledConf;
+    }
+
+    public void setScheduledConf(boolean scheduledConf) {
+        this.scheduledConf = scheduledConf;
+    }
+
+    public Date getScheduledStartDate() {
+        return scheduledStartDate;
+    }
+
+    public void setScheduledStartDate(Date scheduledStartDate) {
+        this.scheduledStartDate = scheduledStartDate;
+    }
+
+    public List<String> getGuests() {
+        return guests;
+    }
+
+    public void setGuests(List<String> guests) {
+        this.guests = guests;
     }
 
     @Override
@@ -526,6 +568,14 @@ public class Room implements IMultiSelectable, IDisplayable {
         if( !StringsUtil.isNullOrEmpty(getName()) )
             return getName();
         return unknownNameString;
+    }
+
+    public boolean isInactiveConference() {
+        return inactiveConference;
+    }
+
+    public void setInactiveConference(boolean inactiveConference) {
+        this.inactiveConference = inactiveConference;
     }
 
 }

@@ -27,6 +27,7 @@ import com.ale.security.util.SSLUtil;
 import com.ale.util.Duration;
 import com.ale.util.Util;
 import com.ale.util.log.Log;
+import com.google.firebase.iid.FirebaseInstanceId;
 import com.koushikdutta.async.http.WebSocket;
 
 import org.jivesoftware.smack.ConnectionListener;
@@ -117,7 +118,7 @@ public class XmppConnection implements ConnectionListener, IDataNetworkChangedLi
         m_connection = new XMPPWebSocketConnection(builder.build());
         m_connection.setPacketReplyTimeout(Duration.FIFTEEN_SECONDS_IN_MILLISECONDS);
 
-        m_pushMgr = new XmppPushMgr(context,m_connection, serviceName);
+        m_pushMgr = canGetFirebaseInstance() ? new XmppPushMgr(context, m_connection, serviceName) : null;
 
         m_connectionForcedClose = false;
         acquireWakeLock(true);
@@ -253,41 +254,31 @@ public class XmppConnection implements ConnectionListener, IDataNetworkChangedLi
             if (m_connection.isConnected() && getConnectionState() == XmppConnection.ConnectionState.CONNECTED) {
                 m_connectionState = ConnectionState.DISCONNECTING;
 
-                Thread disconnectingThread = new Thread(new Runnable() {
-                    @Override
-                    public void run() {
-                        try {
-                            CarbonManager carbonManager = CarbonManager.getInstanceFor(m_connection);
-                            carbonManager.sendCarbonsEnabled(false);
-                            StanzaFilter filter = new StanzaTypeFilter(IQ.class);
-                            PacketCollector collector;
-                            if (m_xmppContactMgr != null) {
-                                collector = m_connection.createPacketCollectorAndSend(filter, m_xmppContactMgr.getSettingsPresence());
-                                m_xmppContactMgr.sendPresence(Presence.Type.unavailable, null, null);
-                            } else
-                                collector = m_connection.createPacketCollectorAndSend(filter, new Presence(Presence.Type.unavailable));
+                try {
+                    CarbonManager carbonManager = CarbonManager.getInstanceFor(m_connection);
+                    carbonManager.sendCarbonsEnabled(false);
+                    StanzaFilter filter = new StanzaTypeFilter(IQ.class);
+                    PacketCollector collector;
+                    if (m_xmppContactMgr != null) {
+                        collector = m_connection.createPacketCollectorAndSend(filter, m_xmppContactMgr.getSettingsPresence());
+                        m_xmppContactMgr.sendPresence(Presence.Type.unavailable, null, null);
+                    } else
+                        collector = m_connection.createPacketCollectorAndSend(filter, new Presence(Presence.Type.unavailable));
 
-                            collector.nextResultOrThrow();
+                    collector.nextResultOrThrow();
 
-                            m_connection.shutdown();
-                            m_connection = null;
-                            Log.getLogger().info(LOG_TAG, "disconnecting done ");
-
-                        } catch (Exception e) {
-                            Log.getLogger().error(LOG_TAG, "Problem while disconnecting: ", e);
-                        }
-
-                        if( m_xmppContactMgr != null)
-                            m_xmppContactMgr.disconnect();
-                    }
-                });
-                disconnectingThread.start();
+                } catch (Exception e) {
+                    Log.getLogger().error(LOG_TAG, "Problem while disconnecting: ", e);
+                }
             }
-            else
-            {
-                if( m_xmppContactMgr != null)
-                    m_xmppContactMgr.disconnect();
-            }
+
+            m_connection.shutdown();
+            m_connection = null;
+
+            Log.getLogger().info(LOG_TAG, "disconnecting done ");
+
+            if (m_xmppContactMgr != null)
+                m_xmppContactMgr.disconnect();
         }
         else
         {
@@ -414,7 +405,7 @@ public class XmppConnection implements ConnectionListener, IDataNetworkChangedLi
         //m_connection.login();
 
         sendConnectionChangedNotification();
-        
+
         if( !m_connection.streamWasResumed() ) {
             m_xmppContactMgr.loadUserInfos();
             if (m_chatMgr != null)
@@ -427,7 +418,11 @@ public class XmppConnection implements ConnectionListener, IDataNetworkChangedLi
         m_chatMgr.getServerTime();
         m_chatMgr.resentMessages();
         cancelDisconnectionTimer();
-        m_pushMgr.activatePushNotification();
+
+        if (m_pushMgr != null) {
+            m_pushMgr.activatePushNotification();
+        }
+
         m_callLogMgr.retrieveCallLogs(null);
     }
 
@@ -530,6 +525,11 @@ public class XmppConnection implements ConnectionListener, IDataNetworkChangedLi
 
     private void sendConnectionChangedNotification()
     {
+
+        if (m_connection == null || m_connectionState == ConnectionState.DISCONNECTING) {
+            Log.getLogger().info(LOG_TAG, ">stop sendConnectionChangedNotification");
+            return;
+        }
         Log.getLogger().info (LOG_TAG, ">sendConnectionChangedNotification connection is " + m_connectionState.toString());
         Intent intent = new Intent(XmppIntent.CONNECTION_STATE_CHANGE);
         m_applicationContext.sendBroadcast(intent);
@@ -666,5 +666,14 @@ public class XmppConnection implements ConnectionListener, IDataNetworkChangedLi
     public TelephonyMgr getTelephonyMgr()
     {
         return m_telephonyMgr;
+    }
+
+    private boolean canGetFirebaseInstance() {
+        try {
+            FirebaseInstanceId.getInstance();
+            return true;
+        } catch (IllegalStateException e) {
+            return false;
+        }
     }
 }

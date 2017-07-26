@@ -118,6 +118,8 @@ public class DatabaseHelper extends SQLiteOpenHelper {
     public static final String ROOM_JID = "jid";
     public static final String ROOM_ID = "id";
     public static final String ROOM_CREATOR_ID = "creator_id";
+    public static final String ROOM_SCHEDULED_CONF = "room_scheduled_conf";
+    public static final String ROOM_SCHEDULED_START_DATE = "room_scheduled_start_date";
 
     private static final String ROOM_CREATE = "create table "
             + TABLE_ROOM + "( " +
@@ -127,6 +129,8 @@ public class DatabaseHelper extends SQLiteOpenHelper {
             ROOM_NAME + " text," +
             ROOM_JID + " text," +
             ROOM_ID + " text," +
+            ROOM_SCHEDULED_CONF + " int," +
+            ROOM_SCHEDULED_START_DATE + " long," +
             ROOM_CREATOR_ID + " text );";
 
 
@@ -135,6 +139,7 @@ public class DatabaseHelper extends SQLiteOpenHelper {
     public static final String ROOM_CONTACT_STATUS =  "contact_status";
     public static final String ROOM_CONTACT_ROLE = "contact_role";
     public static final String ROOM_CONTACT_ROOM_ID = "room_jid";
+
 
     private static final String ROOM_CONTACT_CREATE = "create table "
             + TABLE_ROOM_CONTACT + "( " +
@@ -182,7 +187,7 @@ public class DatabaseHelper extends SQLiteOpenHelper {
             CHAT_DELIVERY_STATE + " text );";
 
 
-    private static final int DATABASE_VERSION = 29;
+    private static final int DATABASE_VERSION = 31;
 
     public DatabaseHelper(Context context, Object syncObj) {
         super(context, DATABASE_NAME, null, DATABASE_VERSION);

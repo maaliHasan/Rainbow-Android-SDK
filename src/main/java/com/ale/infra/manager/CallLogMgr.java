@@ -62,6 +62,7 @@ public class CallLogMgr implements ChatMessageListener, ChatManagerListener
     private final String m_userJid;
     private final Context m_context;
     private ArrayItemList<CallLogGroup> m_callLogs = new ArrayItemList<>();
+    private ArrayItemList<CallLogGroup> m_missedCallLogs = new ArrayItemList<>();
     private List<CallLog> m_downloadedLogs = new ArrayList<>();
     private boolean m_isRetrievingCallLogs = false;
     private Set<Chat> m_chats = new HashSet<>();
@@ -153,6 +154,11 @@ public class CallLogMgr implements ChatMessageListener, ChatManagerListener
         return m_callLogs;
     }
 
+    public ArrayItemList<CallLogGroup> getMissedCallLogs()
+    {
+        return m_missedCallLogs;
+    }
+
     public void retrieveCallLogs(final ICallLogListener listener)
     {
         if (m_isRetrievingCallLogs)
@@ -189,11 +195,15 @@ public class CallLogMgr implements ChatMessageListener, ChatManagerListener
                             Log.getLogger().info(LOG_TAG, "retrieveCallLogs done - available : " + result.getCount());
 
                             List<CallLogGroup> callLogGroups = new ArrayList<>();
+                            List<CallLogGroup> missedCallLogGroups = new ArrayList<>();
 
                             for (CallLog callLog : m_downloadedLogs)
                             {
                                 CallLogGroup callLogGroup = getCallLogGroup(callLogGroups, callLog.getContact());
                                 callLogGroup.getCallLogs().add(callLog);
+
+                                if (callLog.isMissed() && !missedCallLogGroups.contains(callLogGroup))
+                                    missedCallLogGroups.add(callLogGroup);
                             }
 
                             for (CallLogGroup callLogGroup : callLogGroups)
@@ -202,8 +212,10 @@ public class CallLogMgr implements ChatMessageListener, ChatManagerListener
                             }
 
                             Collections.sort(callLogGroups, Collections.reverseOrder());
+                            Collections.sort(missedCallLogGroups, Collections.reverseOrder());
 
                             m_callLogs.replaceAll(callLogGroups);
+                            m_missedCallLogs.replaceAll(missedCallLogGroups);
 
                             if (listener != null)
                                 listener.onSuccess();
@@ -265,7 +277,7 @@ public class CallLogMgr implements ChatMessageListener, ChatManagerListener
         {
             CallLog callLog = new CallLog(callLogMessagePacketExtension, m_contactCacheMgr, m_userJid);
 
-            if (callLog.getContact().getImJabberId().contains("@"))
+            if (!"phone".equals(callLog.getType()))
                 m_downloadedLogs.add(callLog);
         }
 
@@ -276,14 +288,20 @@ public class CallLogMgr implements ChatMessageListener, ChatManagerListener
             if (callLog.getContact().getImJabberId().contains("@"))
             {
                 List<CallLogGroup> callLogGroups = m_callLogs.getCopyOfDataList();
+                List<CallLogGroup> missedCallLogGroups = m_missedCallLogs.getCopyOfDataList();
 
                 CallLogGroup callLogGroup = getCallLogGroup(callLogGroups, callLog.getContact());
                 callLogGroup.getCallLogs().add(callLog);
 
+                if (callLog.isMissed() && !missedCallLogGroups.contains(callLogGroup))
+                    missedCallLogGroups.add(callLogGroup);
+
                 Collections.sort(callLogGroup.getCallLogs(), Collections.reverseOrder());
                 Collections.sort(callLogGroups, Collections.reverseOrder());
+                Collections.sort(missedCallLogGroups, Collections.reverseOrder());
 
                 m_callLogs.replaceAll(callLogGroups);
+                m_missedCallLogs.replaceAll(missedCallLogGroups);
 
                 notifyCounterChanged();
             }
@@ -298,6 +316,7 @@ public class CallLogMgr implements ChatMessageListener, ChatManagerListener
                 if (callLogGroup.getContact().getImJabberId().equals(deletedCallLogMessagePacketExtension.getPeer()))
                 {
                     m_callLogs.delete(callLogGroup);
+                    m_missedCallLogs.delete(callLogGroup);
                     notifyCounterChanged();
                     break;
                 }
@@ -306,7 +325,7 @@ public class CallLogMgr implements ChatMessageListener, ChatManagerListener
 
         if (readCallLogMessagePacketExtension != null)
         {
-            List<CallLogGroup> callLogGroups = m_callLogs.getCopyOfDataList();
+            List<CallLogGroup> callLogGroups = m_missedCallLogs.getCopyOfDataList();
 
             for (CallLogGroup callLogGroup : callLogGroups)
             {
@@ -349,6 +368,7 @@ public class CallLogMgr implements ChatMessageListener, ChatManagerListener
                                 Log.getLogger().info(LOG_TAG, "deleteCallLogs done - deleted : " + result.getCount());
 
                                 m_callLogs.delete(callLogGroup);
+                                m_missedCallLogs.delete(callLogGroup);
 
                                 m_connection.removeSyncStanzaListener(this);
 
@@ -389,11 +409,11 @@ public class CallLogMgr implements ChatMessageListener, ChatManagerListener
 
                 List<CallLog> logsToAck = new ArrayList<>();
 
-                for (CallLogGroup group : m_callLogs.getCopyOfDataList())
+                for (CallLogGroup group : m_missedCallLogs.getCopyOfDataList())
                 {
                     for (CallLog log : group.getCallLogs())
                     {
-                        if (log.isMissed())
+                        if (log.isNewMissed())
                             logsToAck.add(log);
                     }
                 }
@@ -423,11 +443,11 @@ public class CallLogMgr implements ChatMessageListener, ChatManagerListener
     {
         int counter = 0;
 
-        for (CallLogGroup group : m_callLogs.getCopyOfDataList())
+        for (CallLogGroup group : m_missedCallLogs.getCopyOfDataList())
         {
             for (CallLog log : group.getCallLogs())
             {
-                if (log.isMissed())
+                if (log.isNewMissed())
                     counter++;
             }
         }
@@ -436,6 +456,17 @@ public class CallLogMgr implements ChatMessageListener, ChatManagerListener
         intent.putExtra(COUNTER, counter);
 
         m_context.sendBroadcast(intent);
+    }
+
+    public CallLogGroup getCallLogGroupByJid(String jid)
+    {
+        for (CallLogGroup callLogGroup : m_callLogs.getCopyOfDataList())
+        {
+            if (callLogGroup.getContact().getImJabberId().equals(jid))
+                return callLogGroup;
+        }
+
+        return null;
     }
 
     public interface ICallLogListener

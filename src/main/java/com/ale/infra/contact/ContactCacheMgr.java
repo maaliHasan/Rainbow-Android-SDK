@@ -661,6 +661,12 @@ public class ContactCacheMgr implements IContactCacheMgr, XmppContactMgr.XmppCon
         if(contact.getDirectoryContact() == directoryContact)
             return;
 
+        boolean serverPhotoMayHaveChanged = false;
+
+        if (contact.getDirectoryContact() != null && directoryContact != null
+                && contact.getDirectoryContact().getLastAvatarUpdateDate() != null  && !contact.getDirectoryContact().getLastAvatarUpdateDate().equals(directoryContact.getLastAvatarUpdateDate()))
+            serverPhotoMayHaveChanged = true;
+
         if (contact.isCorporate()) {
             contact.getDirectoryContact().fillEmptyFieldsWithContact(directoryContact);
 
@@ -671,7 +677,7 @@ public class ContactCacheMgr implements IContactCacheMgr, XmppContactMgr.XmppCon
 
         if (contactDataSource != null)
             contactDataSource.createOrUpdateContact(contact);
-        downloadContactAvatar(contact, false);
+        downloadContactAvatar(contact, serverPhotoMayHaveChanged);
     }
 
 
@@ -864,7 +870,7 @@ public class ContactCacheMgr implements IContactCacheMgr, XmppContactMgr.XmppCon
 
 
         Log.getLogger().verbose(LOG_TAG, "Asking Server photo for "+ contactLogInfo);
-        if( m_avatarProxy != null) {
+        if( m_avatarProxy != null && !directoryContact.hasNoAvatarOnServer()) {
             m_avatarProxy.getAvatar(contact, 288, new IAvatarProxy.IAvatarListener() {
                 @Override
                 public void onAvatarSuccess(Bitmap bmp) {
@@ -881,8 +887,12 @@ public class ContactCacheMgr implements IContactCacheMgr, XmppContactMgr.XmppCon
                 }
 
                 @Override
-                public void onAvatarFailure() {
+                public void onAvatarFailure(RainbowServiceException exception) {
                     Log.getLogger().warn(LOG_TAG, ">onAvatarFailure; "+ contact.getDisplayName4Log(""));
+                    if (exception != null && exception.getStatusCode() == 404) {
+                        //No avatar on server
+                        directoryContact.sethasNoAvatarOnServer(true);
+                    }
                 }
             });
         }
@@ -952,7 +962,7 @@ public class ContactCacheMgr implements IContactCacheMgr, XmppContactMgr.XmppCon
 
         List<String> unresolvedContactJids = new ArrayList<>();
         for(Contact contact : contacts) {
-            if( contact.isCorporate() && StringsUtil.isNullOrEmpty(contact.getCompanyId()))
+            if( contact.isCorporate())
                 unresolvedContactJids.add(contact.getImJabberId());
         }
 
@@ -1125,8 +1135,15 @@ public class ContactCacheMgr implements IContactCacheMgr, XmppContactMgr.XmppCon
             @Override
             public void onSuccess(Contact contact) {
                 Log.getLogger().verbose(LOG_TAG, ">refreshUser Success");
-                Contact contactCreated = createContactIfNotExistOrUpdate(contact.getDirectoryContact());
-                Log.getLogger().verbose(LOG_TAG, ">refreshUser contact = " + contactCreated.getDisplayName4Log(""));
+
+                m_user.getDirectoryContact().update(contact.getDirectoryContact());
+
+                if (contactDataSource != null)
+                    contactDataSource.createOrUpdateContact(m_user);
+
+                downloadContactAvatar(m_user, false);
+
+                Log.getLogger().verbose(LOG_TAG, ">refreshUser contact = " + m_user.getDisplayName4Log(""));
             }
 
             @Override

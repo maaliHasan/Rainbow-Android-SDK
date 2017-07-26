@@ -141,4 +141,6 @@ public interface IInfrastructure {
     void unregisterConnectionListener(IConnectionListener listener);
 
     CallLogMgr getCallLogMgr();
+
+    boolean isUnderUnitTest();
 }

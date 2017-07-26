@@ -148,7 +148,7 @@ public class DataStorage implements IDataStorage
 	@Override
 	public void setPgiOtherPhoneNumberList(List<String> pgiOtherPhoneNumberList) {
 		if( pgiOtherPhoneNumberList.size() > 5 ) {
-			pgiOtherPhoneNumberList = new ArrayList<>(pgiOtherPhoneNumberList.subList(0, 5));
+			pgiOtherPhoneNumberList = new ArrayList<>(pgiOtherPhoneNumberList.subList(1, 5));
 		}
 		serializeObject(pgiOtherPhoneNumberList, PGI_OTHER_PHONE_NUMBER_LIST_SERIALIZATION_FILENAME);
 	}

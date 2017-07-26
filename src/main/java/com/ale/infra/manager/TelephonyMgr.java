@@ -99,6 +99,7 @@ import static org.webrtc.PeerConnection.SignalingState.STABLE;
  */
 public class TelephonyMgr implements ChatMessageListener, ChatManagerListener
 {
+    public static final String DELAY_NAMESPACE = "urn:xmpp:delay";
     private static final int LOOPBACK = 16;
     private final static String LOG_TAG = "TelephonyMgr";
     private final PCObserver m_pcObserver = new PCObserver();
@@ -138,7 +139,14 @@ public class TelephonyMgr implements ChatMessageListener, ChatManagerListener
     private Statistics m_statistics = new Statistics();
     private SessionDescription m_localSdpForIceRestart;
     private Set<Chat> m_chats = new HashSet<>();
-
+    private AudioManager.OnAudioFocusChangeListener m_audioListener = new AudioManager.OnAudioFocusChangeListener()
+    {
+        @Override
+        public void onAudioFocusChange(int focusChange)
+        {
+            Log.getLogger().info(LOG_TAG, "onAudioFocusChange: " + focusChange);
+        }
+    };
     private final ConnectionListener m_connectionListener = new ConnectionListener()
     {
         @Override
@@ -187,15 +195,6 @@ public class TelephonyMgr implements ChatMessageListener, ChatManagerListener
         @Override
         public void reconnectionFailed(Exception e)
         {
-        }
-    };
-
-    private AudioManager.OnAudioFocusChangeListener m_audioListener = new AudioManager.OnAudioFocusChangeListener()
-    {
-        @Override
-        public void onAudioFocusChange(int focusChange)
-        {
-            Log.getLogger().info(LOG_TAG, "onAudioFocusChange: " + focusChange);
         }
     };
 
@@ -663,7 +662,17 @@ public class TelephonyMgr implements ChatMessageListener, ChatManagerListener
                         fireCallModified();
 
                         if (m_currentCall.wasInitiatedWithVideo())
-                            LoudspeakerHelper.activateLoudspeaker(m_applicationContext);
+                        {
+                            m_handler.post(new Runnable()
+                            {
+                                @Override
+                                public void run()
+                                {
+                                    LoudspeakerHelper.activateLoudspeaker(m_applicationContext);
+                                }
+                            });
+                        }
+
 
                         m_audioManager.setMode(AudioManager.MODE_IN_COMMUNICATION);
 
@@ -683,7 +692,17 @@ public class TelephonyMgr implements ChatMessageListener, ChatManagerListener
                         m_peerConnection.setRemoteDescription(m_sdpObserver, acceptSdp);
 
                     if (m_currentCall.wasInitiatedWithVideo())
-                        LoudspeakerHelper.activateLoudspeaker(m_applicationContext);
+                    {
+                        m_handler.post(new Runnable()
+                        {
+                            @Override
+                            public void run()
+                            {
+                                LoudspeakerHelper.activateLoudspeaker(m_applicationContext);
+                            }
+                        });
+                    }
+
 
                     m_audioManager.setMode(AudioManager.MODE_IN_COMMUNICATION);
 
@@ -874,6 +893,12 @@ public class TelephonyMgr implements ChatMessageListener, ChatManagerListener
     @Override
     public void processMessage(Chat chat, Message message)
     {
+        if (message.getExtension(DELAY_NAMESPACE) != null)
+        {
+            Log.getLogger().warn(LOG_TAG, "Delay detected => ignore: " + message.toString());
+            return;
+        }
+
         ProposePacketExtension proposePacketExtension = message.getExtension(ProposePacketExtension.ELEMENT_NAME, ProposePacketExtension.NAMESPACE);
         AcceptPacketExtension acceptPacketExtension = message.getExtension(AcceptPacketExtension.ELEMENT_NAME, AcceptPacketExtension.NAMESPACE);
         RetractPacketExtension retractPacketExtension = message.getExtension(RetractPacketExtension.ELEMENT_NAME, RetractPacketExtension.NAMESPACE);
@@ -950,7 +975,7 @@ public class TelephonyMgr implements ChatMessageListener, ChatManagerListener
                 return;
         }
 
-        if (!m_gsmPhone.isCallStateIdle())
+        if (m_gsmPhone != null && !m_gsmPhone.isCallStateIdle())
         {
             Log.getLogger().warn(LOG_TAG, "There's a current GSM call, ignore the WebRTC call on this device");
             return;
@@ -1310,7 +1335,15 @@ public class TelephonyMgr implements ChatMessageListener, ChatManagerListener
 
         sendCallPresence(true);
 
-        LoudspeakerHelper.activateLoudspeaker(m_applicationContext);
+        m_handler.post(new Runnable()
+        {
+            @Override
+            public void run()
+            {
+                LoudspeakerHelper.activateLoudspeaker(m_applicationContext);
+            }
+        });
+
 
         return true;
     }
@@ -1347,7 +1380,7 @@ public class TelephonyMgr implements ChatMessageListener, ChatManagerListener
         return true;
     }
 
-    public void handlePushMessage(String senderJid, String msgId, String callAction, String medias)
+    public void handlePushMessage(String senderJid, String callResource, String msgId, String callAction, String medias)
     {
         XmppConnection connection = RainbowContext.getInfrastructure().getXmppConnection();
 
@@ -1356,7 +1389,7 @@ public class TelephonyMgr implements ChatMessageListener, ChatManagerListener
 
         if ("propose".equals(callAction))
         {
-            m_pushCallSender = senderJid;
+            m_pushCallSender = senderJid + "/" + callResource;
             m_pushProposePacketExtension = new ProposePacketExtension();
             m_pushProposePacketExtension.setId(msgId);
 
@@ -1409,7 +1442,7 @@ public class TelephonyMgr implements ChatMessageListener, ChatManagerListener
 
     public void disconnect()
     {
-        if(m_connection != null)
+        if (m_connection != null)
         {
             m_connection.removeConnectionListener(m_connectionListener);
             m_connection.unregisterIQRequestHandler(CallIq.ELEMENT, CallIq.NAMESPACE, IQ.Type.set);

@@ -13,7 +13,6 @@ import java.util.ArrayList;
 
 public class CallLogGroup implements Comparable<CallLogGroup>, IMultiSelectable
 {
-    private static final String LOG_TAG = "CallLogGroup";
     private ArrayList<CallLog> m_callLogs = new ArrayList<>();
     private Contact m_contact;
 

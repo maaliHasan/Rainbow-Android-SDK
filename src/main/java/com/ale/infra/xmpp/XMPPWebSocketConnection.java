@@ -42,10 +42,10 @@ import org.jivesoftware.smack.sm.StreamManagementException;
 import org.jivesoftware.smack.sm.packet.StreamManagement;
 import org.jivesoftware.smack.sm.predicates.Predicate;
 import org.jivesoftware.smack.sm.provider.ParseStreamManagement;
-import org.jivesoftware.smack.tcp.BundleAndDeferCallback;
 import org.jivesoftware.smack.util.ArrayBlockingQueueWithShutdown;
 import org.jivesoftware.smack.util.PacketParserUtils;
 import org.jivesoftware.smack.util.StringUtils;
+import org.jivesoftware.smackx.bytestreams.ibb.InBandBytestreamManager;
 import org.xmlpull.v1.XmlPullParser;
 import org.xmlpull.v1.XmlPullParserFactory;
 
@@ -80,7 +80,6 @@ public class XMPPWebSocketConnection extends AbstractRainbowXMPPConnection {
      * The WebSocket which is used for this connection.
      */
     private WebSocket m_client;
-    protected String m_sessionID = null;
     private IPeriodicWorkerManager m_periodicMgr;
     private XMPPWebSocketConfiguration m_config;
 
@@ -89,13 +88,7 @@ public class XMPPWebSocketConnection extends AbstractRainbowXMPPConnection {
         @Override
         public void onSeamless3GToWifiRoaming() {
             Log.getLogger().info(LOG_TAG, "onSeamless3GToWifiRoaming");
-
-            if (m_client != null) {
-                m_client.close();
-                m_client = null;
-                if( packetWriter != null)
-                    packetWriter.shutdown(true);
-            }
+            notifyConnectionError();
         }
     };
     private IPeriodicWorker m_pingWorker = new IPeriodicWorker()
@@ -415,12 +408,7 @@ public class XMPPWebSocketConnection extends AbstractRainbowXMPPConnection {
             }
         }
 
-        if( m_client != null) {
-            m_client.setStringCallback(null);
-            m_client.setClosedCallback(null);
-        }
-
-        shutdown(false);
+        shutdown(true);
 
         if (m_periodicMgr != null)
             m_periodicMgr.stopWorker(PING_WORKER_NAME);
@@ -431,10 +419,11 @@ public class XMPPWebSocketConnection extends AbstractRainbowXMPPConnection {
         connectionListeners.clear();
     }
 
-    public void closeWebSocket() {
+    public synchronized void closeWebSocket() {
         if (m_client != null) {
             if (m_client.getSocket() != null)
                 m_client.getSocket().end();
+            m_client.close();
             m_client = null;
         }
     }
@@ -462,10 +451,7 @@ public class XMPPWebSocketConnection extends AbstractRainbowXMPPConnection {
         // It is *important* that this is done before socket.disconnect()!
         socketClosed = true;
         try {
-            if( m_client != null) {
-                m_client.close();
-                m_client = null;
-            }
+            closeWebSocket();
         } catch (Exception e) {
             Log.getLogger().warn(LOG_TAG, "shutdown", e);
         }
@@ -526,11 +512,7 @@ public class XMPPWebSocketConnection extends AbstractRainbowXMPPConnection {
         socketClosed = false;
         try {
             // Ensure a clean starting state
-            if (m_client != null) {
-                m_client.close();
-                m_client = null;
-            }
-            m_sessionID = null;
+            closeWebSocket();
 
             if( !m_fakeWebSocketClient ) {
                 try {
@@ -588,7 +570,8 @@ public class XMPPWebSocketConnection extends AbstractRainbowXMPPConnection {
 
             // Notify listeners that a new connection has been established
             for (ConnectionCreationListener listener : getConnectionCreationListeners()) {
-                listener.connectionCreated(this);
+                if(!listener.getClass().getName().contains(InBandBytestreamManager.class.getName()))
+                    listener.connectionCreated(this);
             }
         } else {
             packetWriter.setWebSocket(m_client);
@@ -874,10 +857,7 @@ public class XMPPWebSocketConnection extends AbstractRainbowXMPPConnection {
             instantShutdown = instant;
             shutdownTimestamp = System.currentTimeMillis();
             queue.shutdown();
-            if (m_client != null) {
-                m_client.close();
-                m_client = null;
-            }
+
             try {
                 shutdownDone.checkIfSuccessOrWait();
             } catch (SmackException.NoResponseException e) {
@@ -1040,17 +1020,6 @@ public class XMPPWebSocketConnection extends AbstractRainbowXMPPConnection {
      */
     public void setUseStreamManagementDefault(boolean useSmDefault) {
         this.useSmDefault = useSmDefault;
-    }
-
-    /**
-     * Set if Stream Management resumption should be used by default for new connections.
-     *
-     * @param useSmResumptionDefault true to use Stream Management resumption for new connections.
-     * @deprecated use {@link #setUseStreamManagementResumptionDefault(boolean)} instead.
-     */
-    @Deprecated
-    public void setUseStreamManagementResumptiodDefault(boolean useSmResumptionDefault) {
-        setUseStreamManagementResumptionDefault(useSmResumptionDefault);
     }
 
     /**
@@ -1467,36 +1436,20 @@ public class XMPPWebSocketConnection extends AbstractRainbowXMPPConnection {
         serverHandledStanzasCount = handledCount;
     }
 
-    /**
-     * Set the default bundle and defer callback used for new connections.
-     *
-     * @param defaultBundleAndDeferCallback
-     * @see BundleAndDeferCallback
-     * @since 4.1
-     */
-    public static void setDefaultBundleAndDeferCallback(BundleAndDeferCallback defaultBundleAndDeferCallback) {
-    }
-
-    /**
-     * Set the bundle and defer callback used for this connection.
-     * <p>
-     * You can use <code>null</code> as argument to reset the callback. Outgoing stanzas will then
-     * no longer get deferred.
-     * </p>
-     *
-     * @param bundleAndDeferCallback the callback or <code>null</code>.
-     * @see BundleAndDeferCallback
-     * @since 4.1
-     */
-    public void setBundleandDeferCallback(BundleAndDeferCallback bundleAndDeferCallback) {
-    }
-
     private class WebSocketConnectionListener implements AsyncHttpClient.WebSocketConnectCallback {
         @Override
         public void onCompleted(final Exception ex, final WebSocket webSocket) {
             Thread webSocketThread = new Thread(new Runnable() {
                 @Override
                 public void run() {
+                    if(socketClosed)
+                    {
+                        Log.getLogger().warn(LOG_TAG, "Tried to disconnect before connect ended");
+                        m_client = webSocket;
+                        closeWebSocket();
+                        return;
+                    }
+
                     try {
                         if (ex == null && webSocket != null) {
                             Log.getLogger().info(LOG_TAG, ">>>onCompleted");

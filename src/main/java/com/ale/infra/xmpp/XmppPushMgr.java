@@ -6,9 +6,11 @@ import com.ale.infra.application.RainbowContext;
 import com.ale.infra.xmpp.xep.Command.PushCommandResultIQ;
 import com.ale.infra.xmpp.xep.Command.RainbowCommandPush;
 import com.ale.infra.xmpp.xep.Command.RainbowEnablePush;
+import com.ale.service.RainbowService;
 import com.ale.util.StringsUtil;
 import com.ale.util.Util;
 import com.ale.util.log.Log;
+import com.google.firebase.iid.FirebaseInstanceId;
 
 import org.jivesoftware.smack.SmackException;
 import org.jivesoftware.smack.packet.Element;
@@ -38,6 +40,12 @@ public class XmppPushMgr
         m_connection = connection;
         m_serviceName = serviceName;
         m_applicationContext = pContext.getApplicationContext();
+
+        if (!RainbowContext.getInfrastructure().isUnderUnitTest()){
+            String refreshedToken = FirebaseInstanceId.getInstance().getToken();
+            RainbowContext.getPlatformServices().getApplicationData().setGooglePushToken(refreshedToken);
+            Log.getLogger().info(LOG_TAG, "Firebase token: " + refreshedToken);
+        }
 
         ProviderManager.addIQProvider(PushCommandResultIQ.ELEMENT, PushCommandResultIQ.NAMESPACE, new IQProvider()
         {
@@ -122,7 +130,7 @@ public class XmppPushMgr
             RainbowCommandPush cmdIq = new RainbowCommandPush(m_serviceName, pushToken, "android", Util.getDeviceImei(m_applicationContext), false);
             try
             {
-                m_connection.send(cmdIq);
+                m_connection.createPacketCollectorAndSend(cmdIq).nextResultOrThrow();
             }
             catch (Exception e)
             {

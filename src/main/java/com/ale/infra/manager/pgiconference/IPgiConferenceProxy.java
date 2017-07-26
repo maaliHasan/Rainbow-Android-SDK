@@ -26,11 +26,14 @@ public interface IPgiConferenceProxy {
 
     void muteParticipant(String confId, String userId, boolean muteState, IToggleMuteStateParticipantListener listener);
 
+    void muteAllParticipant(String confId, boolean muteState, IToggleMuteStateParticipantListener listener);
+
     void hangUpParticipant(String confId, String userId, IHangUpParticipantListener listener);
 
     void startRecording(String confId, IStartRecordListener listener);
 
     void stopRecording(String confId, IStopRecordListener listener);
+
 
 
     interface IGetAllConferencesListener

@@ -1,5 +1,6 @@
 package com.ale.infra.rainbow.adapter;
 
+import com.ale.infra.application.RainbowContext;
 import com.ale.infra.http.IRESTAsyncRequest;
 import com.ale.infra.http.RESTResult;
 import com.ale.infra.http.adapter.concurrent.AsyncServiceResponseResult;
@@ -96,8 +97,7 @@ public class RainbowAvatarServiceAdapter implements IRainbowAvatarService
     public void getAvatar(final String userId, String hash , final int size, final IAsyncServiceResultCallback<GetAvatarResponse> callback)
     {
         Log.getLogger().verbose(LOG_TAG, ">getAvatar");
-
-        StringBuilder restUrl = new StringBuilder(getUrl());
+        StringBuilder restUrl = new StringBuilder(RainbowContext.getPlatformServices().getApplicationData().getServerUrlForCDN());
         restUrl.append(ApisConstants.AVATAR);
         restUrl.append("/");
 
@@ -119,6 +119,7 @@ public class RainbowAvatarServiceAdapter implements IRainbowAvatarService
         }
         Log.getLogger().verbose(LOG_TAG, ">getAvatar resturl:" + restUrl);
 
+        final String s = restUrl.toString();
         try
         {
             m_restAsyncRequest.getAvatarFile(restUrl.toString(), new IAsyncServiceResultCallback<GetAvatarResponse>() {
@@ -131,7 +132,7 @@ public class RainbowAvatarServiceAdapter implements IRainbowAvatarService
                     }
                     else
                     {
-                        Log.getLogger().info(LOG_TAG, "getAvatar success");
+                        Log.getLogger().info(LOG_TAG, "getAvatar success:" +  s);
                         try {
                             notifyGetAvatarResult(callback, null, asyncResult.getResult());
                         } catch (Exception e) {
