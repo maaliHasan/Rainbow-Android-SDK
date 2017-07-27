@@ -22,7 +22,7 @@ To compile the ALE Rainbow Android SDK in your Android project, add the followin
 
 	dependencies {
 		(...)
-		compile 'com.github.Rainbow-CPaaS:Rainbow-Android-SDK:1.28.1'
+		compile 'com.github.Rainbow-CPaaS:Rainbow-Android-SDK:1.28.2'
 	}
 
 Then click on "Sync now". Your Android project is now all set to use the ALE Rainbow Android SDK.
