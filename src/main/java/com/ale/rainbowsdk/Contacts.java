@@ -537,6 +537,31 @@ public class Contacts
         }
     }
 
+    /**
+     * get contact data from server
+     * @param id contact id
+     * @param listener listener
+     */
+    public void getUserDataFromId(String id, final IUserProxy.IGetUserDataListener listener) {
+        if (RainbowContext.getInfrastructure().getUsersProxy() != null) {
+            RainbowContext.getInfrastructure().getUsersProxy().getUserData(id, new IUserProxy.IGetUserDataListener() {
+                @Override
+                public void onSuccess(Contact contact) {
+                    if (listener != null) {
+                        listener.onSuccess(contact);
+                    }
+                }
+
+                @Override
+                public void onFailure(RainbowServiceException exception) {
+                    if (listener != null) {
+                        listener.onFailure(exception);
+                    }
+                }
+            });
+        }
+    }
+
     protected void registerChangeListener() {
         RainbowContext.getInfrastructure().getContactCacheMgr().getRosters().registerChangeListener(m_contactsListener);
     }
