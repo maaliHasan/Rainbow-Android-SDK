@@ -415,9 +415,11 @@ public class InvitationMgr implements IInvitationMgr, XmppContactMgr.XmppContact
                             contact.setClickActionInProgress(false);
                         } else {
                             Contact contact = m_contactCacheMgr.getContactFromEmail(finalEmailAddress);
-                            contact.setRosterInProgress(true);
-                            contact.setPresence(null, RainbowPresence.SUBSCRIBE);
-                            contact.setClickActionInProgress(false);
+                            if (contact != null) {
+                                contact.setRosterInProgress(true);
+                                contact.setPresence(null, RainbowPresence.SUBSCRIBE);
+                                contact.setClickActionInProgress(false);
+                            }
                         }
                     }
 
